@@ -1,0 +1,31 @@
+@import 'tailwindcss';
+
+/* Design tokens — placeholders. P1 will replace with values extracted from spiamericas.com. */
+/* TODO(BRAND): replace with SPI-derived tokens after fetching the live site. */
+@theme {
+  --color-primary: #0f2f4a;
+  --color-primary-600: #1a4b74;
+  --color-accent: #d97706;
+  --color-accent-600: #b45309;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f5f6f8;
+  --color-border: #d9dde3;
+  --color-text: #0f172a;
+  --color-text-muted: #475569;
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
