@@ -22,7 +22,7 @@ export function DraftIndicator({ dep }: { dep: unknown }) {
       aria-live="polite"
       className={`text-xs transition-opacity ${
         visible ? 'opacity-100' : 'opacity-0'
-      } text-[color:var(--color-text-subtle)]`}
+      } text-text-subtle`}
     >
       Borrador guardado
     </span>

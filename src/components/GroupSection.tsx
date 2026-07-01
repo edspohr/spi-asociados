@@ -75,14 +75,14 @@ export function GroupSection({
   return (
     <section
       aria-labelledby={`group-${group.id}-title`}
-      className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)]"
+      className="rounded-lg border border-border bg-surface"
     >
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-controls={`group-${group.id}-body`}
-        className="flex w-full items-center justify-between gap-3 rounded-lg px-4 py-3 text-left hover:bg-[color:var(--color-surface-muted)]"
+        className="flex w-full items-center justify-between gap-3 rounded-lg px-4 py-3 text-left hover:bg-surface-muted"
       >
         <span className="flex items-center gap-2">
           <span
@@ -93,21 +93,21 @@ export function GroupSection({
           </span>
           <span
             id={`group-${group.id}-title`}
-            className="font-semibold text-[color:var(--color-primary)]"
+            className="font-semibold text-primary"
           >
             {label}
           </span>
           {group.singleRow && (
-            <span className="text-xs text-[color:var(--color-text-subtle)]">(una sola fila)</span>
+            <span className="text-xs text-text-subtle">(una sola fila)</span>
           )}
         </span>
-        <span className="text-xs text-[color:var(--color-text-muted)]">
+        <span className="text-xs text-text-muted">
           {countMarked === 0 ? 'Sin marcar' : `${countMarked} celda(s) marcada(s)`}
         </span>
       </button>
 
       {open && (
-        <div id={`group-${group.id}-body`} className="border-t border-[color:var(--color-border)] p-4">
+        <div id={`group-${group.id}-body`} className="border-t border-border p-4">
           <div className="mb-3">
             <MatrixLegend />
           </div>
@@ -118,7 +118,7 @@ export function GroupSection({
                 <tr>
                   <th
                     scope="col"
-                    className="sticky left-0 top-0 z-20 min-w-[14rem] bg-[color:var(--color-surface-muted)] px-3 py-2 text-left font-semibold text-[color:var(--color-text)]"
+                    className="sticky left-0 top-0 z-20 min-w-56 bg-surface-muted px-3 py-2 text-left font-semibold text-text"
                   >
                     Servicio
                   </th>
@@ -126,7 +126,7 @@ export function GroupSection({
                     <th
                       key={c}
                       scope="col"
-                      className="sticky top-0 z-10 whitespace-nowrap bg-[color:var(--color-surface-muted)] px-2 py-2 text-center text-xs font-semibold text-[color:var(--color-text)]"
+                      className="sticky top-0 z-10 whitespace-nowrap bg-surface-muted px-2 py-2 text-center text-xs font-semibold text-text"
                     >
                       {c}
                     </th>
@@ -141,7 +141,7 @@ export function GroupSection({
                     <tr key={service || 'single'}>
                       <th
                         scope="row"
-                        className="sticky left-0 z-10 min-w-[14rem] bg-white px-3 py-2 text-left font-normal text-[color:var(--color-text)]"
+                        className="sticky left-0 z-10 min-w-56 bg-white px-3 py-2 text-left font-normal text-text"
                       >
                         <span className="inline-flex items-center">
                           {serviceLabel}
@@ -178,7 +178,7 @@ export function GroupSection({
 
           {showOtherDetail && (
             <label className="mt-4 flex flex-col gap-1 text-sm">
-              <span className="font-medium text-[color:var(--color-text)]">
+              <span className="font-medium text-text">
                 Especifique “Otro” servicio
               </span>
               <input
@@ -186,7 +186,7 @@ export function GroupSection({
                 value={otherDetail}
                 onChange={(e) => onOtherDetailChange(e.target.value)}
                 placeholder="Nombre del servicio"
-                className="w-full max-w-md rounded border border-[color:var(--color-border)] bg-white px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20"
+                className="w-full max-w-md rounded border border-border bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
               />
             </label>
           )}

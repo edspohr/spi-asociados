@@ -13,7 +13,7 @@ import { hasErrors, validateCompany } from './lib/validation';
 import { buildPayload } from './lib/payload';
 import { submitForm } from './lib/submit';
 
-const SPI_LOGO = 'https://spiamericas.com/wp-content/uploads/2024/11/cropped-Logos-02-132x64.png';
+const SPI_LOGO = '/logo.png';
 const DRAFT_KEY = 'spi-asociados-draft';
 
 export default function App() {
@@ -103,14 +103,14 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
+      <header className="border-b border-border bg-surface">
         <div className="mx-auto flex max-w-5xl items-center gap-4 px-6 py-4">
-          <img src={SPI_LOGO} alt="SPI Americas" className="h-12 w-auto" />
+          <img src={SPI_LOGO} alt="SPI Americas" className="h-14 w-auto" />
           <div className="flex-1">
-            <h1 className="text-xl font-semibold text-[color:var(--color-primary)]">
+            <h1 className="text-xl font-semibold text-primary">
               Hoja de Vida de Asociados
             </h1>
-            <p className="text-sm text-[color:var(--color-text-muted)]">
+            <p className="text-sm text-text-muted">
               Formulario para caracterizar los servicios que presta su firma.
             </p>
           </div>
@@ -119,7 +119,7 @@ export default function App() {
             <button
               type="button"
               onClick={handleReset}
-              className="text-xs text-[color:var(--color-text-subtle)] underline hover:text-[color:var(--color-primary)]"
+              className="text-xs text-text-subtle underline hover:text-primary"
             >
               Empezar de nuevo
             </button>
@@ -145,10 +145,10 @@ export default function App() {
 
         {selectedGroups.length > 0 && (
           <section aria-label="Matrices por grupo" className="flex flex-col gap-3">
-            <h2 className="text-lg font-semibold text-[color:var(--color-primary)]">
+            <h2 className="text-lg font-semibold text-primary">
               Matrices por grupo
             </h2>
-            <p className="text-sm text-[color:var(--color-text-muted)]">
+            <p className="text-sm text-text-muted">
               Haga clic en cada celda para alternar entre <strong>No ofrecido</strong>,{' '}
               <strong>Directo</strong> y <strong>Tercerizado</strong>. También puede usar las
               flechas del teclado para moverse y la barra espaciadora / Enter para cambiar el
@@ -187,7 +187,7 @@ export default function App() {
         {submitError && (
           <div
             role="alert"
-            className="rounded border border-[color:var(--color-danger)]/40 bg-red-50 p-3 text-sm text-[color:var(--color-danger)]"
+            className="rounded border border-danger/40 bg-red-50 p-3 text-sm text-danger"
           >
             No fue posible enviar el formulario: {submitError}
           </div>

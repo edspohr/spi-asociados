@@ -43,7 +43,7 @@ export function MatrixCell({ state, onCycle, onKeyNav, ariaLabel, cellRef }: Pro
 
   const label = `${ariaLabel} — ${LABELS[state]}`;
   const common =
-    'flex h-9 w-9 items-center justify-center rounded text-xs font-bold transition outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)]/70';
+    'flex h-9 w-9 items-center justify-center rounded text-xs font-bold transition outline-none focus-visible:ring-2 focus-visible:ring-primary/70';
 
   if (state === 'directo') {
     return (
@@ -53,7 +53,7 @@ export function MatrixCell({ state, onCycle, onKeyNav, ariaLabel, cellRef }: Pro
         onClick={onCycle}
         onKeyDown={handleKey}
         aria-label={label}
-        className={`${common} bg-[color:var(--color-primary)] text-white hover:bg-[color:var(--color-primary-600)]`}
+        className={`${common} bg-primary text-white hover:bg-primary-600`}
       >
         D
       </button>
@@ -85,7 +85,7 @@ export function MatrixCell({ state, onCycle, onKeyNav, ariaLabel, cellRef }: Pro
       onClick={onCycle}
       onKeyDown={handleKey}
       aria-label={label}
-      className={`${common} border border-[color:var(--color-border)] bg-white text-[color:var(--color-text-subtle)] hover:border-[color:var(--color-primary)]`}
+      className={`${common} border border-border bg-white text-text-subtle hover:border-primary`}
     >
       ·
     </button>
@@ -98,13 +98,13 @@ export function nextCellState(s: CellState): CellState {
 
 export function MatrixLegend() {
   return (
-    <div className="flex flex-wrap items-center gap-4 text-xs text-[color:var(--color-text-muted)]">
+    <div className="flex flex-wrap items-center gap-4 text-xs text-text-muted">
       <span className="flex items-center gap-2">
-        <span className="inline-block h-4 w-4 rounded border border-[color:var(--color-border)] bg-white" />
+        <span className="inline-block h-4 w-4 rounded border border-border bg-white" />
         No ofrecido
       </span>
       <span className="flex items-center gap-2">
-        <span className="inline-flex h-4 w-4 items-center justify-center rounded bg-[color:var(--color-primary)] text-[10px] font-bold text-white">
+        <span className="inline-flex h-4 w-4 items-center justify-center rounded bg-primary text-[10px] font-bold text-white">
           D
         </span>
         Directo

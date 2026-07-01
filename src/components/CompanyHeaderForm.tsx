@@ -14,14 +14,14 @@ export function CompanyHeaderForm({ value, errors, onChange }: Props) {
   return (
     <section
       aria-labelledby="header-title"
-      className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6"
+      className="rounded-lg border border-border bg-surface p-6"
     >
       <header className="mb-4">
-        <h2 id="header-title" className="text-lg font-semibold text-[color:var(--color-primary)]">
+        <h2 id="header-title" className="text-lg font-semibold text-primary">
           Datos de la empresa
         </h2>
-        <p className="text-sm text-[color:var(--color-text-muted)]">
-          Los campos marcados con <span className="text-[color:var(--color-danger)]">★</span> son
+        <p className="text-sm text-text-muted">
+          Los campos marcados con <span className="text-danger">★</span> son
           obligatorios.
         </p>
       </header>
@@ -175,8 +175,8 @@ export function CompanyHeaderForm({ value, errors, onChange }: Props) {
 
 function Fieldset({ legend, children }: { legend: string; children: React.ReactNode }) {
   return (
-    <fieldset className="mt-6 rounded-md border border-[color:var(--color-border)] p-4">
-      <legend className="px-2 text-sm font-semibold text-[color:var(--color-primary)]">
+    <fieldset className="mt-6 rounded-md border border-border p-4">
+      <legend className="px-2 text-sm font-semibold text-primary">
         {legend}
       </legend>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">{children}</div>
@@ -199,16 +199,16 @@ function Field({
 }) {
   return (
     <label className="flex flex-col gap-1 text-sm">
-      <span className="font-medium text-[color:var(--color-text)]">
+      <span className="font-medium text-text">
         {label}
-        {required && <span className="ml-1 text-[color:var(--color-danger)]">★</span>}
+        {required && <span className="ml-1 text-danger">★</span>}
       </span>
       {children}
       {hint && !error && (
-        <span className="text-xs text-[color:var(--color-text-subtle)]">{hint}</span>
+        <span className="text-xs text-text-subtle">{hint}</span>
       )}
       {error && (
-        <span role="alert" className="text-xs text-[color:var(--color-danger)]">
+        <span role="alert" className="text-xs text-danger">
           {error}
         </span>
       )}
@@ -218,9 +218,9 @@ function Field({
 
 function inputCls(err?: string): string {
   const base =
-    'w-full rounded border bg-white px-3 py-2 text-sm text-[color:var(--color-text)] outline-none transition focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20';
+    'w-full rounded border bg-white px-3 py-2 text-sm text-text outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20';
   const border = err
-    ? 'border-[color:var(--color-danger)]'
-    : 'border-[color:var(--color-border)]';
+    ? 'border-danger'
+    : 'border-border';
   return `${base} ${border}`;
 }

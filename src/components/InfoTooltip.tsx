@@ -22,7 +22,7 @@ export function InfoTooltip({ text }: Props) {
         onMouseLeave={() => setOpen(false)}
         onFocus={() => setOpen(true)}
         onBlur={() => setOpen(false)}
-        className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full border border-[color:var(--color-border)] text-[10px] font-bold text-[color:var(--color-text-subtle)] hover:border-[color:var(--color-primary)] hover:text-[color:var(--color-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)]/70"
+        className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full border border-border text-[10px] font-bold text-text-subtle hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
       >
         i
       </button>
@@ -30,7 +30,7 @@ export function InfoTooltip({ text }: Props) {
         <span
           id={id}
           role="tooltip"
-          className="absolute left-1/2 top-full z-20 mt-1 w-56 -translate-x-1/2 rounded border border-[color:var(--color-border)] bg-white px-2 py-1 text-xs text-[color:var(--color-text)] shadow-md"
+          className="absolute left-1/2 top-full z-20 mt-1 w-56 -translate-x-1/2 rounded border border-border bg-white px-2 py-1 text-xs text-text shadow-md"
         >
           {trimmed}
         </span>
