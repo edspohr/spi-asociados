@@ -2,45 +2,62 @@ import { useMemo, useState } from 'react';
 import { CompanyHeaderForm } from './components/CompanyHeaderForm';
 import { GroupSelector } from './components/GroupSelector';
 import { GroupSection } from './components/GroupSection';
+import { DraftIndicator } from './components/DraftIndicator';
 import { GROUPS, type Country, type ServiceKey } from './data/form-config';
-import { EMPTY_COMPANY, makeCellKey, type CompanyInfo, type GroupMatrix } from './types/form';
+import { EMPTY_FORM, makeCellKey, type FormState, type GroupMatrix } from './types/form';
 import { nextCellState } from './components/MatrixCell';
+import { useLocalStorageState } from './hooks/useLocalStorageState';
 import { validateCompany } from './lib/validation';
 
 const SPI_LOGO = 'https://spiamericas.com/wp-content/uploads/2024/11/cropped-Logos-02-132x64.png';
+const DRAFT_KEY = 'spi-asociados-draft';
 
 export default function App() {
-  const [company, setCompany] = useState<CompanyInfo>(EMPTY_COMPANY);
-  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
-  const [customGroupName, setCustomGroupName] = useState('');
-  const [matrices, setMatrices] = useState<Record<string, GroupMatrix>>({});
-  const [otherDetails, setOtherDetails] = useState<Record<string, string>>({});
+  const [form, setForm, clearDraft] = useLocalStorageState<FormState>(DRAFT_KEY, EMPTY_FORM, {
+    version: 1,
+  });
   const [submitted, setSubmitted] = useState(false);
 
-  const errors = useMemo(() => validateCompany(company), [company]);
+  const errors = useMemo(() => validateCompany(form.company), [form.company]);
   const displayErrors = submitted ? errors : {};
 
   const selectedGroups = useMemo(
-    () => GROUPS.filter((g) => selectedGroupIds.includes(g.id)),
-    [selectedGroupIds],
+    () => GROUPS.filter((g) => form.selectedGroupIds.includes(g.id)),
+    [form.selectedGroupIds],
   );
 
   function toggleGroup(id: string, next: boolean) {
-    setSelectedGroupIds((prev) =>
-      next ? Array.from(new Set([...prev, id])) : prev.filter((x) => x !== id),
-    );
+    setForm((prev) => {
+      const selected = next
+        ? Array.from(new Set([...prev.selectedGroupIds, id]))
+        : prev.selectedGroupIds.filter((x) => x !== id);
+      // Keep matrices/details for de-selected groups so users don't lose work
+      // if they toggle by accident. They're pruned at submit time (P7).
+      return { ...prev, selectedGroupIds: selected };
+    });
   }
 
   function cycleCell(groupId: string, service: ServiceKey | '', country: Country) {
-    setMatrices((prev) => {
-      const m: GroupMatrix = { ...(prev[groupId] ?? {}) };
+    setForm((prev) => {
+      const m: GroupMatrix = { ...(prev.matrices[groupId] ?? {}) };
       const key = makeCellKey(service, country);
       const current = m[key] ?? 'empty';
       const next = nextCellState(current);
       if (next === 'empty') delete m[key];
       else m[key] = next;
-      return { ...prev, [groupId]: m };
+      return { ...prev, matrices: { ...prev.matrices, [groupId]: m } };
     });
+  }
+
+  function handleReset() {
+    if (
+      window.confirm(
+        '¿Está seguro que desea empezar de nuevo? Se perderán todos los datos ingresados.',
+      )
+    ) {
+      clearDraft();
+      setSubmitted(false);
+    }
   }
 
   return (
@@ -48,7 +65,7 @@ export default function App() {
       <header className="border-b border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
         <div className="mx-auto flex max-w-5xl items-center gap-4 px-6 py-4">
           <img src={SPI_LOGO} alt="SPI Americas" className="h-12 w-auto" />
-          <div>
+          <div className="flex-1">
             <h1 className="text-xl font-semibold text-[color:var(--color-primary)]">
               Hoja de Vida de Asociados
             </h1>
@@ -56,17 +73,33 @@ export default function App() {
               Formulario para caracterizar los servicios que presta su firma.
             </p>
           </div>
+          <div className="flex flex-col items-end gap-1">
+            <DraftIndicator dep={form} />
+            <button
+              type="button"
+              onClick={handleReset}
+              className="text-xs text-[color:var(--color-text-subtle)] underline hover:text-[color:var(--color-primary)]"
+            >
+              Empezar de nuevo
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="mx-auto flex max-w-5xl flex-col gap-6 px-6 py-8">
-        <CompanyHeaderForm value={company} errors={displayErrors} onChange={setCompany} />
+        <CompanyHeaderForm
+          value={form.company}
+          errors={displayErrors}
+          onChange={(company) => setForm((prev) => ({ ...prev, company }))}
+        />
 
         <GroupSelector
-          selectedIds={selectedGroupIds}
-          customGroupName={customGroupName}
+          selectedIds={form.selectedGroupIds}
+          customGroupName={form.customGroupName}
           onToggle={toggleGroup}
-          onCustomNameChange={setCustomGroupName}
+          onCustomNameChange={(customGroupName) =>
+            setForm((prev) => ({ ...prev, customGroupName }))
+          }
         />
 
         {selectedGroups.length > 0 && (
@@ -84,16 +117,19 @@ export default function App() {
               <GroupSection
                 key={g.id}
                 group={g}
-                matrix={matrices[g.id] ?? {}}
-                otherDetail={otherDetails[g.id] ?? ''}
+                matrix={form.matrices[g.id] ?? {}}
+                otherDetail={form.otherServiceDetail[g.id] ?? ''}
                 displayLabel={
-                  g.id === 'otro_grupo' && customGroupName.trim()
-                    ? `Otro grupo: ${customGroupName.trim()}`
+                  g.id === 'otro_grupo' && form.customGroupName.trim()
+                    ? `Otro grupo: ${form.customGroupName.trim()}`
                     : undefined
                 }
                 onCellCycle={(service, country) => cycleCell(g.id, service, country)}
                 onOtherDetailChange={(v) =>
-                  setOtherDetails((prev) => ({ ...prev, [g.id]: v }))
+                  setForm((prev) => ({
+                    ...prev,
+                    otherServiceDetail: { ...prev.otherServiceDetail, [g.id]: v },
+                  }))
                 }
               />
             ))}
@@ -102,7 +138,7 @@ export default function App() {
 
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm text-[color:var(--color-text-muted)]">
-            Los siguientes pasos (autoguardado, revisión y envío) se agregarán en fases posteriores.
+            Revisión y envío se agregarán en la próxima fase.
           </p>
           <button
             type="button"
