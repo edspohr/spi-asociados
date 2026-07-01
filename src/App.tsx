@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 import { CompanyHeaderForm } from './components/CompanyHeaderForm';
 import { GroupSelector } from './components/GroupSelector';
-import { GROUPS } from './data/form-config';
-import { EMPTY_COMPANY, type CompanyInfo } from './types/form';
+import { GroupSection } from './components/GroupSection';
+import { GROUPS, type Country, type ServiceKey } from './data/form-config';
+import { EMPTY_COMPANY, makeCellKey, type CompanyInfo, type GroupMatrix } from './types/form';
+import { nextCellState } from './components/MatrixCell';
 import { validateCompany } from './lib/validation';
 
 const SPI_LOGO = 'https://spiamericas.com/wp-content/uploads/2024/11/cropped-Logos-02-132x64.png';
@@ -11,6 +13,8 @@ export default function App() {
   const [company, setCompany] = useState<CompanyInfo>(EMPTY_COMPANY);
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [customGroupName, setCustomGroupName] = useState('');
+  const [matrices, setMatrices] = useState<Record<string, GroupMatrix>>({});
+  const [otherDetails, setOtherDetails] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
 
   const errors = useMemo(() => validateCompany(company), [company]);
@@ -25,6 +29,18 @@ export default function App() {
     setSelectedGroupIds((prev) =>
       next ? Array.from(new Set([...prev, id])) : prev.filter((x) => x !== id),
     );
+  }
+
+  function cycleCell(groupId: string, service: ServiceKey | '', country: Country) {
+    setMatrices((prev) => {
+      const m: GroupMatrix = { ...(prev[groupId] ?? {}) };
+      const key = makeCellKey(service, country);
+      const current = m[key] ?? 'empty';
+      const next = nextCellState(current);
+      if (next === 'empty') delete m[key];
+      else m[key] = next;
+      return { ...prev, [groupId]: m };
+    });
   }
 
   return (
@@ -54,37 +70,39 @@ export default function App() {
         />
 
         {selectedGroups.length > 0 && (
-          <section
-            aria-labelledby="preview-title"
-            className="rounded-lg border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6"
-          >
-            <h2
-              id="preview-title"
-              className="mb-2 text-lg font-semibold text-[color:var(--color-primary)]"
-            >
-              Vista previa: grupos seleccionados (matrices en P5)
+          <section aria-label="Matrices por grupo" className="flex flex-col gap-3">
+            <h2 className="text-lg font-semibold text-[color:var(--color-primary)]">
+              Matrices por grupo
             </h2>
-            <ul className="list-disc pl-6 text-sm text-[color:var(--color-text)]">
-              {selectedGroups.map((g) => (
-                <li key={g.id}>
-                  {g.id === 'otro_grupo' && customGroupName.trim()
-                    ? `${g.label} — "${customGroupName.trim()}"`
-                    : g.label}
-                  {g.singleRow && (
-                    <span className="ml-2 text-xs text-[color:var(--color-text-subtle)]">
-                      (una sola fila)
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <p className="text-sm text-[color:var(--color-text-muted)]">
+              Haga clic en cada celda para alternar entre <strong>No ofrecido</strong>,{' '}
+              <strong>Directo</strong> y <strong>Tercerizado</strong>. También puede usar las
+              flechas del teclado para moverse y la barra espaciadora / Enter para cambiar el
+              estado.
+            </p>
+            {selectedGroups.map((g) => (
+              <GroupSection
+                key={g.id}
+                group={g}
+                matrix={matrices[g.id] ?? {}}
+                otherDetail={otherDetails[g.id] ?? ''}
+                displayLabel={
+                  g.id === 'otro_grupo' && customGroupName.trim()
+                    ? `Otro grupo: ${customGroupName.trim()}`
+                    : undefined
+                }
+                onCellCycle={(service, country) => cycleCell(g.id, service, country)}
+                onOtherDetailChange={(v) =>
+                  setOtherDetails((prev) => ({ ...prev, [g.id]: v }))
+                }
+              />
+            ))}
           </section>
         )}
 
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm text-[color:var(--color-text-muted)]">
-            Los siguientes pasos (matriz de servicios × países, revisión y envío) se agregarán en
-            fases posteriores.
+            Los siguientes pasos (autoguardado, revisión y envío) se agregarán en fases posteriores.
           </p>
           <button
             type="button"
