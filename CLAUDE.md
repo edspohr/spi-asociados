@@ -39,10 +39,17 @@ instead of POSTed — useful for local UI work before the backend is deployed.
 
 ## Build & deploy
 
+Frontend (Firebase Hosting):
+
 ```
+firebase login              # once, opens a browser
 npm run build               # tsc + vite build → dist/
-firebase deploy             # after firebase init hosting (see below)
+firebase deploy --only hosting
 ```
+
+Project id `spi-asociados` is pinned in `.firebaserc`; `firebase.json` points
+Hosting at `dist/`, rewrites all paths to `index.html` (SPA), and sets
+long-cache headers on hashed assets with `no-cache` on `index.html`.
 
 Backend deploy: see `apps-script/README.md`.
 
