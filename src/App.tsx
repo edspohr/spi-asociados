@@ -3,11 +3,15 @@ import { CompanyHeaderForm } from './components/CompanyHeaderForm';
 import { GroupSelector } from './components/GroupSelector';
 import { GroupSection } from './components/GroupSection';
 import { DraftIndicator } from './components/DraftIndicator';
+import { ReviewAndSubmit } from './components/ReviewAndSubmit';
+import { SuccessScreen } from './components/SuccessScreen';
 import { GROUPS, type Country, type ServiceKey } from './data/form-config';
 import { EMPTY_FORM, makeCellKey, type FormState, type GroupMatrix } from './types/form';
 import { nextCellState } from './components/MatrixCell';
 import { useLocalStorageState } from './hooks/useLocalStorageState';
-import { validateCompany } from './lib/validation';
+import { hasErrors, validateCompany } from './lib/validation';
+import { buildPayload } from './lib/payload';
+import { submitForm } from './lib/submit';
 
 const SPI_LOGO = 'https://spiamericas.com/wp-content/uploads/2024/11/cropped-Logos-02-132x64.png';
 const DRAFT_KEY = 'spi-asociados-draft';
@@ -17,8 +21,12 @@ export default function App() {
     version: 1,
   });
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [successCount, setSuccessCount] = useState<number | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const errors = useMemo(() => validateCompany(form.company), [form.company]);
+  const headerHasErrors = hasErrors(errors);
   const displayErrors = submitted ? errors : {};
 
   const selectedGroups = useMemo(
@@ -27,14 +35,12 @@ export default function App() {
   );
 
   function toggleGroup(id: string, next: boolean) {
-    setForm((prev) => {
-      const selected = next
+    setForm((prev) => ({
+      ...prev,
+      selectedGroupIds: next
         ? Array.from(new Set([...prev.selectedGroupIds, id]))
-        : prev.selectedGroupIds.filter((x) => x !== id);
-      // Keep matrices/details for de-selected groups so users don't lose work
-      // if they toggle by accident. They're pruned at submit time (P7).
-      return { ...prev, selectedGroupIds: selected };
-    });
+        : prev.selectedGroupIds.filter((x) => x !== id),
+    }));
   }
 
   function cycleCell(groupId: string, service: ServiceKey | '', country: Country) {
@@ -57,7 +63,42 @@ export default function App() {
     ) {
       clearDraft();
       setSubmitted(false);
+      setSubmitError(null);
+      setSuccessCount(null);
     }
+  }
+
+  async function handleSubmit() {
+    setSubmitted(true);
+    if (headerHasErrors) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const payload = buildPayload(form);
+      const result = await submitForm(payload);
+      if (result.ok) {
+        setSuccessCount(result.inserted);
+        clearDraft();
+      } else {
+        setSubmitError(result.error);
+      }
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (successCount !== null) {
+    return (
+      <SuccessScreen
+        inserted={successCount}
+        onNew={() => {
+          setSuccessCount(null);
+          setSubmitted(false);
+        }}
+      />
+    );
   }
 
   return (
@@ -136,18 +177,21 @@ export default function App() {
           </section>
         )}
 
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm text-[color:var(--color-text-muted)]">
-            Revisión y envío se agregarán en la próxima fase.
-          </p>
-          <button
-            type="button"
-            onClick={() => setSubmitted(true)}
-            className="rounded bg-[color:var(--color-primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-600)]"
+        <ReviewAndSubmit
+          form={form}
+          headerHasErrors={headerHasErrors}
+          submitting={submitting}
+          onSubmit={handleSubmit}
+        />
+
+        {submitError && (
+          <div
+            role="alert"
+            className="rounded border border-[color:var(--color-danger)]/40 bg-red-50 p-3 text-sm text-[color:var(--color-danger)]"
           >
-            Validar encabezado
-          </button>
-        </div>
+            No fue posible enviar el formulario: {submitError}
+          </div>
+        )}
       </main>
     </div>
   );
