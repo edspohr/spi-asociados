@@ -2,15 +2,17 @@ import { useMemo } from 'react';
 import type { FormState } from '../types/form';
 import { buildRows, findSubmitBlockers, groupDisplayLabel } from '../lib/payload';
 import { GROUPS, findGroupContext } from '../data/form-config';
+import { countryName } from '../data/countries';
 
 type Props = {
   form: FormState;
   headerHasErrors: boolean;
   submitting: boolean;
   onSubmit: () => void;
+  onBack?: () => void;
 };
 
-export function ReviewAndSubmit({ form, headerHasErrors, submitting, onSubmit }: Props) {
+export function ReviewAndSubmit({ form, headerHasErrors, submitting, onSubmit, onBack }: Props) {
   const rows = useMemo(() => buildRows(form), [form]);
   const blockers = useMemo(() => findSubmitBlockers(form), [form]);
 
@@ -56,6 +58,16 @@ export function ReviewAndSubmit({ form, headerHasErrors, submitting, onSubmit }:
           }
         />
         <SummaryLine
+          label="Países de operación"
+          value={
+            form.selectedCountries.length === 0
+              ? '—'
+              : `${form.selectedCountries.length} — ${form.selectedCountries
+                  .map((c) => countryName(c))
+                  .join(', ')}`
+          }
+        />
+        <SummaryLine
           label="Grupos seleccionados"
           value={form.selectedGroupIds.length.toString()}
         />
@@ -97,16 +109,11 @@ export function ReviewAndSubmit({ form, headerHasErrors, submitting, onSubmit }:
                   <ul className="mt-2 space-y-1 text-xs text-text">
                     {rs.map((r, i) => (
                       <li key={i}>
-                        <span className="font-mono">{r.paisAplicacion}</span>
+                        <span className="font-mono">{countryName(r.paisAplicacion)}</span>
                         {' — '}
                         {r.servicio || <em>(sin subservicio)</em>}
                         {' · '}
                         <ModalidadBadge modalidad={r.modalidad} />
-                        {r.servicioOtroDetalle && (
-                          <span className="ml-1 text-text-subtle">
-                            — “{r.servicioOtroDetalle}”
-                          </span>
-                        )}
                       </li>
                     ))}
                   </ul>
@@ -134,7 +141,18 @@ export function ReviewAndSubmit({ form, headerHasErrors, submitting, onSubmit }:
         </div>
       )}
 
-      <div className="mt-6 flex items-center justify-end">
+      <div className="mt-6 flex items-center justify-between gap-3">
+        {onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            className="rounded border border-border bg-white px-4 py-2 text-sm font-medium text-text hover:border-primary"
+          >
+            ← Volver al paso 2
+          </button>
+        ) : (
+          <span />
+        )}
         <button
           type="button"
           onClick={onSubmit}

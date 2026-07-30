@@ -1,19 +1,3 @@
-export const COUNTRIES = [
-  'Argentina',
-  'Bolivia',
-  'Brasil',
-  'Chile',
-  'Colombia',
-  'Ecuador',
-  'Guyana',
-  'Paraguay',
-  'Perú',
-  'Surinam',
-  'Uruguay',
-  'Venezuela',
-] as const;
-export type Country = (typeof COUNTRIES)[number];
-
 export type Group = {
   id: string;
   label: string;
@@ -43,7 +27,6 @@ const COMMON_REGULATORIOS: string[] = [
   'Almacenamiento',
   'Distribución',
   'Consultoría para certificaciones GMP/GLP/similares',
-  'Otros',
 ];
 
 const SERVICES_PI: string[] = [
@@ -80,7 +63,6 @@ const SERVICES_OTRO_GRUPO: string[] = [
   'Servicio técnico',
   'Almacenamiento',
   'Ensayos clínicos',
-  'Otro',
 ];
 
 function regGroup(id: string, label: string, specifics: string[] = []): Group {
@@ -230,13 +212,4 @@ export function findGroupContext(groupId: string): GroupContext | undefined {
     }
   }
   return undefined;
-}
-
-/**
- * The list has two spellings intentionally: Regulatorios uses "Otros" (plural),
- * "Otro grupo" and other groups use "Otro" (singular). Both must trigger the
- * detail field.
- */
-export function isOtherService(service: string): boolean {
-  return service === 'Otro' || service === 'Otros';
 }

@@ -1,22 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  CATEGORIES,
-  COUNTRIES,
-  GROUPS,
-  findGroupContext,
-  isOtherService,
-  type Group,
-} from './form-config';
-
-describe('COUNTRIES', () => {
-  it('lists the 12 South American markets SPI serves', () => {
-    expect(COUNTRIES).toHaveLength(12);
-  });
-
-  it('has no duplicates', () => {
-    expect(new Set(COUNTRIES).size).toBe(COUNTRIES.length);
-  });
-});
+import { CATEGORIES, GROUPS, findGroupContext, type Group } from './form-config';
 
 describe('CATEGORIES', () => {
   it('exposes 4 top-level categories', () => {
@@ -46,7 +29,7 @@ describe('CATEGORIES', () => {
     expect(sub('reg_uso_agricola').groups).toHaveLength(1);
   });
 
-  it('every regulatorios subgroup starts with the 8 common services', () => {
+  it('every regulatorios subgroup starts with the 7 common services', () => {
     const reg = CATEGORIES.find((c) => c.id === 'asuntos_regulatorios')!;
     const commonHead = [
       'Consultoría regulatoria',
@@ -56,12 +39,18 @@ describe('CATEGORIES', () => {
       'Almacenamiento',
       'Distribución',
       'Consultoría para certificaciones GMP/GLP/similares',
-      'Otros',
     ];
     for (const sub of reg.subcategories!) {
       for (const g of sub.groups) {
-        expect(g.services.slice(0, 8)).toEqual(commonHead);
+        expect(g.services.slice(0, 7)).toEqual(commonHead);
       }
+    }
+  });
+
+  it('no group exposes an "Otros"/"Otro" service after the migration', () => {
+    for (const g of GROUPS) {
+      expect(g.services).not.toContain('Otros');
+      expect(g.services).not.toContain('Otro');
     }
   });
 
@@ -77,10 +66,10 @@ describe('CATEGORIES', () => {
     expect(dc.services[0]).toBe('Constitución y derecho societario');
   });
 
-  it('Otro grupo has 9 services and allows a custom name', () => {
+  it('Otro grupo has 8 services and allows a custom name', () => {
     const og = byId('otro_grupo');
     expect(og.allowCustomName).toBe(true);
-    expect(og.services).toHaveLength(9);
+    expect(og.services).toHaveLength(8);
   });
 });
 
@@ -131,19 +120,10 @@ describe('findGroupContext', () => {
   });
 });
 
-describe('isOtherService', () => {
-  it('accepts both "Otro" (singular) and "Otros" (plural)', () => {
-    expect(isOtherService('Otro')).toBe(true);
-    expect(isOtherService('Otros')).toBe(true);
-    expect(isOtherService('Hosting')).toBe(false);
-    expect(isOtherService('')).toBe(false);
-  });
-});
-
 describe('Dispositivos Médicos specifics', () => {
-  it('appends its 4 unique services after the 8 common', () => {
+  it('appends its 4 unique services after the 7 common', () => {
     const g = byId('reg_dispositivos_medicos');
-    expect(g.services.slice(8)).toEqual([
+    expect(g.services.slice(7)).toEqual([
       'Servicio técnico',
       'Ensayos clínicos',
       'Vigilancia postmercado/tecnovigilancia',

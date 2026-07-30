@@ -1,34 +1,34 @@
 import { useCallback, useRef, useState } from 'react';
-import {
-  COUNTRIES,
-  isOtherService,
-  type Country,
-  type Group,
-} from '../data/form-config';
+import { type Group } from '../data/form-config';
+import type { CountryCode, CountryDef } from '../data/countries';
 import type { CellState, GroupMatrix } from '../types/form';
 import { makeCellKey } from '../types/form';
 import { MatrixCell, MatrixLegend } from './MatrixCell';
 
 type Props = {
   group: Group;
+  countries: CountryDef[];
   matrix: GroupMatrix;
-  otherDetail: string;
   displayLabel?: string;
-  onCellCycle: (service: string, country: Country) => void;
-  onOtherDetailChange: (v: string) => void;
+  onCellCycle: (service: string, country: CountryCode) => void;
+  /** Cycle the whole column (all services under `country`) as one uniform state. */
+  onColumnCycle: (country: CountryCode) => void;
+  /** Cycle the whole row (all countries under `service`) as one uniform state. */
+  onRowCycle: (service: string) => void;
 };
 
-function getCell(matrix: GroupMatrix, service: string, country: Country): CellState {
+function getCell(matrix: GroupMatrix, service: string, country: CountryCode): CellState {
   return matrix[makeCellKey(service, country)] ?? 'empty';
 }
 
 export function GroupSection({
   group,
+  countries,
   matrix,
-  otherDetail,
   displayLabel,
   onCellCycle,
-  onOtherDetailChange,
+  onColumnCycle,
+  onRowCycle,
 }: Props) {
   const [open, setOpen] = useState(false);
   const rows = group.services;
@@ -42,24 +42,19 @@ export function GroupSection({
     [],
   );
 
-  const focusCell = useCallback((r: number, c: number) => {
-    const rowMax = rows.length - 1;
-    const colMax = COUNTRIES.length - 1;
-    const rr = Math.max(0, Math.min(r, rowMax));
-    const cc = Math.max(0, Math.min(c, colMax));
-    cellRefs.current[rr]?.[cc]?.focus();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows.length]);
+  const focusCell = useCallback(
+    (r: number, c: number) => {
+      const rowMax = rows.length - 1;
+      const colMax = countries.length - 1;
+      const rr = Math.max(0, Math.min(r, rowMax));
+      const cc = Math.max(0, Math.min(c, colMax));
+      cellRefs.current[rr]?.[cc]?.focus();
+    },
+    [rows.length, countries.length],
+  );
 
   const countMarked = Object.keys(matrix).length;
-
   const label = displayLabel ?? group.label;
-
-  const showOtherDetail = Object.keys(matrix).some((k) => {
-    const idx = k.indexOf('::');
-    if (idx === -1) return false;
-    return isOtherService(k.slice(0, idx));
-  });
 
   return (
     <section
@@ -94,80 +89,91 @@ export function GroupSection({
 
       {open && (
         <div id={`group-${group.id}-body`} className="border-t border-border p-4">
-          <div className="mb-3">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <MatrixLegend />
+            <span className="text-xs text-text-subtle">
+              Consejo: clic en un país o servicio para marcar/desmarcar toda la columna o fila.
+            </span>
           </div>
 
-          <div className="relative overflow-x-auto">
-            <table className="min-w-full border-separate border-spacing-0 text-sm">
-              <thead>
-                <tr>
-                  <th
-                    scope="col"
-                    className="sticky left-0 top-0 z-20 min-w-56 bg-surface-muted px-3 py-2 text-left font-semibold text-text"
-                  >
-                    Servicio
-                  </th>
-                  {COUNTRIES.map((c) => (
+          {countries.length === 0 ? (
+            <p className="text-sm text-text-muted">
+              Seleccione al menos un país en el paso anterior para completar esta matriz.
+            </p>
+          ) : (
+            <div className="relative overflow-x-auto">
+              <table className="min-w-full border-separate border-spacing-0 text-sm">
+                <thead>
+                  <tr>
                     <th
-                      key={c}
                       scope="col"
-                      className="sticky top-0 z-10 whitespace-nowrap bg-surface-muted px-2 py-2 text-center text-xs font-semibold text-text"
+                      className="sticky left-0 top-0 z-20 min-w-56 bg-surface-muted px-3 py-2 text-left font-semibold text-text"
                     >
-                      {c}
+                      Servicio
                     </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((service, rIdx) => (
-                  <tr key={service}>
-                    <th
-                      scope="row"
-                      className="sticky left-0 z-10 min-w-56 bg-white px-3 py-2 text-left font-normal text-text"
-                    >
-                      {service}
-                    </th>
-                    {COUNTRIES.map((country, cIdx) => {
-                      const state = getCell(matrix, service, country);
-                      return (
-                        <td key={country} className="px-1 py-1 text-center align-middle">
-                          <div className="inline-flex">
-                            <MatrixCell
-                              cellRef={registerRef(rIdx, cIdx)}
-                              state={state}
-                              onCycle={() => onCellCycle(service, country)}
-                              onKeyNav={(dir) => {
-                                if (dir === 'up') focusCell(rIdx - 1, cIdx);
-                                else if (dir === 'down') focusCell(rIdx + 1, cIdx);
-                                else if (dir === 'left') focusCell(rIdx, cIdx - 1);
-                                else focusCell(rIdx, cIdx + 1);
-                              }}
-                              ariaLabel={`${service} en ${country}`}
-                            />
-                          </div>
-                        </td>
-                      );
-                    })}
+                    {countries.map((c) => (
+                      <th
+                        key={c.code2}
+                        scope="col"
+                        className="sticky top-0 z-10 whitespace-nowrap bg-surface-muted p-0 text-center text-xs font-semibold text-text"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => onColumnCycle(c.code2)}
+                          title={`${c.nameEs} — marcar/desmarcar toda la columna`}
+                          className="w-full px-2 py-2 hover:bg-accent-100 focus-visible:bg-accent-100 outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                        >
+                          {c.nameEs}
+                        </button>
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {showOtherDetail && (
-            <label className="mt-4 flex flex-col gap-1 text-sm">
-              <span className="font-medium text-text">
-                Especifique “Otro” servicio
-              </span>
-              <input
-                type="text"
-                value={otherDetail}
-                onChange={(e) => onOtherDetailChange(e.target.value)}
-                placeholder="Nombre del servicio"
-                className="w-full max-w-md rounded border border-border bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-              />
-            </label>
+                </thead>
+                <tbody>
+                  {rows.map((service, rIdx) => (
+                    <tr key={service}>
+                      <th
+                        scope="row"
+                        className="sticky left-0 z-10 min-w-56 bg-white p-0 text-left font-normal text-text"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => onRowCycle(service)}
+                          title={`${service} — marcar/desmarcar toda la fila`}
+                          className="w-full px-3 py-2 text-left hover:bg-accent-100 focus-visible:bg-accent-100 outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                        >
+                          {service}
+                        </button>
+                      </th>
+                      {countries.map((country, cIdx) => {
+                        const state = getCell(matrix, service, country.code2);
+                        return (
+                          <td
+                            key={country.code2}
+                            className="px-1 py-1 text-center align-middle"
+                          >
+                            <div className="inline-flex">
+                              <MatrixCell
+                                cellRef={registerRef(rIdx, cIdx)}
+                                state={state}
+                                onCycle={() => onCellCycle(service, country.code2)}
+                                onKeyNav={(dir) => {
+                                  if (dir === 'up') focusCell(rIdx - 1, cIdx);
+                                  else if (dir === 'down') focusCell(rIdx + 1, cIdx);
+                                  else if (dir === 'left') focusCell(rIdx, cIdx - 1);
+                                  else focusCell(rIdx, cIdx + 1);
+                                }}
+                                ariaLabel={`${service} en ${country.nameEs}`}
+                              />
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}
