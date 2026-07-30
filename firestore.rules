@@ -1,0 +1,14 @@
+rules_version = '2';
+
+// All client access is denied. Both endpoints (submitAssociate and
+// listAssociates) go through Cloud Functions with the admin SDK, which
+// bypasses these rules — so anything a client can reach directly must stay
+// closed. If a future feature needs client reads (e.g. a public dashboard),
+// add a scoped `allow read` for just that collection here.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

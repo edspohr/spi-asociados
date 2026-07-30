@@ -1,10 +1,16 @@
-# SPI Asociados — Google Apps Script backend
+# SPI Asociados — Google Apps Script backend (DEPRECATED)
 
-This is a small Google Apps Script Web App that appends form submissions from
-the SPI Americas "Hoja de Vida de Asociados" web form into a Google Sheet.
+> **Deprecated as of 2026-07-30.** The frontend now submits to a Cloud
+> Function (`submitAssociate`) that writes to Firestore. See
+> [`functions/src/index.ts`](../functions/src/index.ts) and the top-level
+> `firebase.json`. This folder is kept for reference only; do not point new
+> deployments here.
+
+This is the original Google Apps Script Web App that appended form submissions
+from the SPI Americas "Hoja de Vida de Asociados" web form into a Google Sheet.
 
 It writes rows in **long / tidy format** — one row per marked
-`(group × service × country)` cell — so SPI can pivot the data directly in
+`(group × service × country)` cell — so SPI could pivot the data directly in
 Sheets.
 
 ## Prerequisites

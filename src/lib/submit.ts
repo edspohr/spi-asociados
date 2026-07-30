@@ -3,20 +3,16 @@ import type { SubmissionPayload } from './payload';
 export type SubmitResult = { ok: true; inserted: number } | { ok: false; error: string };
 
 /**
- * Sends the payload to the Google Apps Script Web App. When the env var is
- * empty we fall through to a dev fallback that logs the payload and pretends
- * the write succeeded, so the UI can be exercised before the backend exists.
- *
- * Uses Content-Type: text/plain to avoid the CORS preflight — Apps Script
- * cannot answer OPTIONS requests. The request body is still a JSON string;
- * the doPost handler parses it with JSON.parse.
+ * POSTs the payload to the `submitAssociate` Cloud Function. When
+ * VITE_SUBMIT_URL is empty (local UI work without a backend), logs the payload
+ * and pretends the write succeeded.
  */
 export async function submitForm(payload: SubmissionPayload): Promise<SubmitResult> {
-  const endpoint = import.meta.env.VITE_SHEETS_ENDPOINT as string | undefined;
+  const endpoint = import.meta.env.VITE_SUBMIT_URL as string | undefined;
 
   if (!endpoint) {
     // eslint-disable-next-line no-console
-    console.info('[submitForm] VITE_SHEETS_ENDPOINT is empty; logging payload only:', payload);
+    console.info('[submitForm] VITE_SUBMIT_URL is empty; logging payload only:', payload);
     return { ok: true, inserted: payload.rows.length };
   }
 
@@ -24,9 +20,8 @@ export async function submitForm(payload: SubmissionPayload): Promise<SubmitResu
   try {
     response = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-      redirect: 'follow',
     });
   } catch (err) {
     return {
@@ -35,19 +30,17 @@ export async function submitForm(payload: SubmissionPayload): Promise<SubmitResu
     };
   }
 
-  if (!response.ok) {
-    return { ok: false, error: `Respuesta HTTP ${response.status} del servidor.` };
-  }
-
   let data: unknown;
   try {
     data = await response.json();
   } catch {
-    return { ok: false, error: 'Respuesta del servidor no es JSON válido.' };
+    return { ok: false, error: `Respuesta HTTP ${response.status} sin JSON válido.` };
   }
 
   if (isResult(data)) {
-    if (data.ok) return { ok: true, inserted: typeof data.inserted === 'number' ? data.inserted : 0 };
+    if (data.ok) {
+      return { ok: true, inserted: typeof data.inserted === 'number' ? data.inserted : 0 };
+    }
     return { ok: false, error: data.error || 'Error desconocido del servidor.' };
   }
 
