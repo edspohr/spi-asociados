@@ -14,6 +14,8 @@ const HEADERS = [
   'contacto_regulatorio_correo',
   'contacto_regulatorio_telefono',
   'correo_adicional',
+  'categoria',
+  'subcategoria',
   'grupo',
   'servicio',
   'servicio_otro_detalle',
@@ -37,6 +39,17 @@ function doPost(e) {
     const c = payload.company || {};
     const ts = new Date();
 
+    // Accept both the new array shape and any legacy single-string field.
+    let correoAdicional = '';
+    if (Array.isArray(c.correosAdicionales)) {
+      correoAdicional = c.correosAdicionales
+        .map(function (s) { return String(s || '').trim(); })
+        .filter(function (s) { return s.length > 0; })
+        .join('; ');
+    } else if (typeof c.correoAdicional === 'string') {
+      correoAdicional = c.correoAdicional;
+    }
+
     const rows = (payload.rows || []).map(function (r) {
       return [
         ts,
@@ -52,7 +65,9 @@ function doPost(e) {
         c.contactoRegulatorioNombre || '',
         c.contactoRegulatorioCorreo || '',
         c.contactoRegulatorioTelefono || '',
-        c.correoAdicional || '',
+        correoAdicional,
+        r.categoria || '',
+        r.subcategoria || '',
         r.grupo || '',
         r.servicio || '',
         r.servicioOtroDetalle || '',

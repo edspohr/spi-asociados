@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EMPTY_COMPANY } from '../types/form';
-import { hasErrors, validateCompany } from './validation';
+import { hasErrors, sanitizePhoneInput, validateCompany } from './validation';
 
 const filled = {
   ...EMPTY_COMPANY,
@@ -38,9 +38,36 @@ describe('validateCompany', () => {
     ).toBeDefined();
   });
 
-  it('rejects malformed correoAdicional but allows empty', () => {
-    expect(validateCompany({ ...filled, correoAdicional: '' }).correoAdicional).toBeUndefined();
-    expect(validateCompany({ ...filled, correoAdicional: 'x@y' }).correoAdicional).toBeDefined();
+  it('validates correosAdicionales per item', () => {
+    // All valid
+    expect(
+      validateCompany({
+        ...filled,
+        correosAdicionales: ['a@b.co', 'c@d.co'],
+      }).correosAdicionales,
+    ).toBeUndefined();
+
+    // One invalid → array with per-index errors, second entry defined
+    const e = validateCompany({
+      ...filled,
+      correosAdicionales: ['a@b.co', 'not-an-email'],
+    });
+    expect(e.correosAdicionales).toBeDefined();
+    expect(e.correosAdicionales![0]).toBeUndefined();
+    expect(e.correosAdicionales![1]).toBeDefined();
+
+    // Empty entry is an error ("remove or fill it")
+    const e2 = validateCompany({
+      ...filled,
+      correosAdicionales: [''],
+    });
+    expect(e2.correosAdicionales![0]).toBeDefined();
+  });
+
+  it('allows an empty correosAdicionales array', () => {
+    expect(
+      validateCompany({ ...filled, correosAdicionales: [] }).correosAdicionales,
+    ).toBeUndefined();
   });
 
   it('rejects nonsense year but allows empty', () => {
@@ -58,5 +85,23 @@ describe('validateCompany', () => {
 
   it('trims whitespace when checking required fields', () => {
     expect(validateCompany({ ...filled, razonSocial: '   ' }).razonSocial).toBeDefined();
+  });
+});
+
+describe('sanitizePhoneInput', () => {
+  it('strips letters and other non-phone characters', () => {
+    expect(sanitizePhoneInput('abc123def456')).toBe('123456');
+  });
+
+  it('keeps digits, spaces, plus, minus, parentheses', () => {
+    expect(sanitizePhoneInput('+57 (1) 555-1234')).toBe('+57 (1) 555-1234');
+  });
+
+  it('is a no-op on already-clean input', () => {
+    expect(sanitizePhoneInput('123456789')).toBe('123456789');
+  });
+
+  it('returns empty string when everything is stripped', () => {
+    expect(sanitizePhoneInput('abc')).toBe('');
   });
 });

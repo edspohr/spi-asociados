@@ -1,32 +1,46 @@
-# React + TypeScript + Vite
+# SPI Americas — Hoja de Vida de Asociados
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Public single-page form that SPI Americas' foreign associates use to declare
+which services they offer, for which product groups, in which countries, and
+whether each service is provided directly (Directo) or outsourced
+(Tercerizado).
 
-Currently, two official plugins are available:
+React 19 + Vite + TypeScript + Tailwind CSS v4. Static hosting on Firebase.
+Submissions POST JSON to a Google Apps Script Web App that appends rows to a
+Google Sheet — no backend runtime.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Run
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```
+cp .env.example .env        # then paste the Apps Script /exec URL
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+If `VITE_SHEETS_ENDPOINT` is empty, submissions log to the console instead of
+posting — useful for local UI work before the backend is deployed.
+
+## Test & build
+
+```
+npm test                    # vitest
+npm run build               # tsc + vite build → dist/
+```
+
+## Deploy
+
+Frontend (Firebase Hosting):
+
+```
+firebase login              # once
+npm run build
+firebase deploy --only hosting
+```
+
+Backend (Google Apps Script): see [`apps-script/README.md`](apps-script/README.md).
+
+## Docs
+
+- [`CLAUDE.md`](CLAUDE.md) — project conventions, data shape, folder layout.
+- [`apps-script/README.md`](apps-script/README.md) — Apps Script deploy and
+  schema-change instructions.

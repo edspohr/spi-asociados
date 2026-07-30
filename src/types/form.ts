@@ -1,4 +1,4 @@
-import type { Country, ServiceKey } from '../data/form-config';
+import type { Country } from '../data/form-config';
 
 export type CompanyInfo = {
   razonSocial: string;
@@ -13,7 +13,7 @@ export type CompanyInfo = {
   contactoRegulatorioNombre: string;
   contactoRegulatorioCorreo: string;
   contactoRegulatorioTelefono: string;
-  correoAdicional: string;
+  correosAdicionales: string[];
 };
 
 export const EMPTY_COMPANY: CompanyInfo = {
@@ -29,16 +29,18 @@ export const EMPTY_COMPANY: CompanyInfo = {
   contactoRegulatorioNombre: '',
   contactoRegulatorioCorreo: '',
   contactoRegulatorioTelefono: '',
-  correoAdicional: '',
+  correosAdicionales: [],
 };
 
-export type CompanyErrors = Partial<Record<keyof CompanyInfo, string>>;
+export type CompanyErrors = Partial<Record<Exclude<keyof CompanyInfo, 'correosAdicionales'>, string>> & {
+  correosAdicionales?: Array<string | undefined>;
+};
 
 export type CellState = 'empty' | 'directo' | 'tercerizado';
 
 /**
- * Matrix state per group. Key is `${serviceKey}::${country}`; single-row groups
- * use `::${country}` (empty service). Only non-empty states are stored.
+ * Matrix state per group. Key is `${serviceLabel}::${country}`.
+ * Only non-empty states are stored.
  */
 export type GroupMatrix = Record<string, Exclude<CellState, 'empty'>>;
 
@@ -58,6 +60,6 @@ export const EMPTY_FORM: FormState = {
   otherServiceDetail: {},
 };
 
-export function makeCellKey(service: ServiceKey | '', country: Country): string {
+export function makeCellKey(service: string, country: Country): string {
   return `${service}::${country}`;
 }

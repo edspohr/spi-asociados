@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type { FormState } from '../types/form';
-import { buildRows, findSubmitBlockers } from '../lib/payload';
+import { buildRows, findSubmitBlockers, groupDisplayLabel } from '../lib/payload';
+import { GROUPS, findGroupContext } from '../data/form-config';
 
 type Props = {
   form: FormState;
@@ -13,15 +14,21 @@ export function ReviewAndSubmit({ form, headerHasErrors, submitting, onSubmit }:
   const rows = useMemo(() => buildRows(form), [form]);
   const blockers = useMemo(() => findSubmitBlockers(form), [form]);
 
-  const byGroup = useMemo(() => {
+  // Group rows by the *original* group id so we can look up category context;
+  // the display label may be user-supplied for "otro_grupo".
+  const byGroupId = useMemo(() => {
     const map = new Map<string, typeof rows>();
-    for (const r of rows) {
-      const list = map.get(r.grupo) ?? [];
-      list.push(r);
-      map.set(r.grupo, list);
+    for (const gid of form.selectedGroupIds) {
+      const groupRows = rows.filter((r) => {
+        const g = GROUPS.find((x) => x.id === gid);
+        if (!g) return false;
+        const label = groupDisplayLabel(g, form.customGroupName);
+        return r.grupo === label;
+      });
+      if (groupRows.length > 0) map.set(gid, groupRows);
     }
     return map;
-  }, [rows]);
+  }, [rows, form.selectedGroupIds, form.customGroupName]);
 
   const canSubmit = !headerHasErrors && blockers.length === 0 && !submitting;
 
@@ -59,41 +66,53 @@ export function ReviewAndSubmit({ form, headerHasErrors, submitting, onSubmit }:
         <h3 className="text-sm font-semibold text-text">
           Detalle por grupo
         </h3>
-        {byGroup.size === 0 ? (
+        {byGroupId.size === 0 ? (
           <p className="mt-2 text-sm text-text-subtle">
             No hay celdas marcadas todavía.
           </p>
         ) : (
           <ul className="mt-2 space-y-3">
-            {Array.from(byGroup.entries()).map(([grupo, rs]) => (
-              <li
-                key={grupo}
-                className="rounded border border-border bg-surface-muted p-3"
-              >
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="font-medium text-primary">{grupo}</span>
-                  <span className="text-xs text-text-muted">
-                    {rs.length} celda(s)
-                  </span>
-                </div>
-                <ul className="mt-2 space-y-1 text-xs text-text">
-                  {rs.map((r, i) => (
-                    <li key={i}>
-                      <span className="font-mono">{r.paisAplicacion}</span>
-                      {' — '}
-                      {r.servicio || <em>(sin subservicio)</em>}
-                      {' · '}
-                      <ModalidadBadge modalidad={r.modalidad} />
-                      {r.servicioOtroDetalle && (
-                        <span className="ml-1 text-text-subtle">
-                          — “{r.servicioOtroDetalle}”
-                        </span>
+            {Array.from(byGroupId.entries()).map(([gid, rs]) => {
+              const ctx = findGroupContext(gid);
+              const grupoLabel = rs[0]?.grupo ?? gid;
+              const contextTag = ctx
+                ? `${ctx.category.label}${ctx.subcategory ? ' · ' + ctx.subcategory.label : ''}`
+                : null;
+              return (
+                <li
+                  key={gid}
+                  className="rounded border border-border bg-surface-muted p-3"
+                >
+                  <div className="flex items-baseline justify-between gap-2">
+                    <div className="flex flex-col">
+                      <span className="font-medium text-primary">{grupoLabel}</span>
+                      {contextTag && (
+                        <span className="text-xs text-text-subtle">{contextTag}</span>
                       )}
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            ))}
+                    </div>
+                    <span className="text-xs text-text-muted">
+                      {rs.length} celda(s)
+                    </span>
+                  </div>
+                  <ul className="mt-2 space-y-1 text-xs text-text">
+                    {rs.map((r, i) => (
+                      <li key={i}>
+                        <span className="font-mono">{r.paisAplicacion}</span>
+                        {' — '}
+                        {r.servicio || <em>(sin subservicio)</em>}
+                        {' · '}
+                        <ModalidadBadge modalidad={r.modalidad} />
+                        {r.servicioOtroDetalle && (
+                          <span className="ml-1 text-text-subtle">
+                            — “{r.servicioOtroDetalle}”
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

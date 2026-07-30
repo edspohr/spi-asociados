@@ -5,7 +5,7 @@ import { GroupSection } from './components/GroupSection';
 import { DraftIndicator } from './components/DraftIndicator';
 import { ReviewAndSubmit } from './components/ReviewAndSubmit';
 import { SuccessScreen } from './components/SuccessScreen';
-import { GROUPS, type Country, type ServiceKey } from './data/form-config';
+import { GROUPS, type Country } from './data/form-config';
 import { EMPTY_FORM, makeCellKey, type FormState, type GroupMatrix } from './types/form';
 import { nextCellState } from './components/MatrixCell';
 import { useLocalStorageState } from './hooks/useLocalStorageState';
@@ -18,7 +18,7 @@ const DRAFT_KEY = 'spi-asociados-draft';
 
 export default function App() {
   const [form, setForm, clearDraft] = useLocalStorageState<FormState>(DRAFT_KEY, EMPTY_FORM, {
-    version: 1,
+    version: 2,
   });
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -43,7 +43,16 @@ export default function App() {
     }));
   }
 
-  function cycleCell(groupId: string, service: ServiceKey | '', country: Country) {
+  function toggleGroupMany(ids: string[], next: boolean) {
+    setForm((prev) => {
+      const current = new Set(prev.selectedGroupIds);
+      if (next) ids.forEach((id) => current.add(id));
+      else ids.forEach((id) => current.delete(id));
+      return { ...prev, selectedGroupIds: Array.from(current) };
+    });
+  }
+
+  function cycleCell(groupId: string, service: string, country: Country) {
     setForm((prev) => {
       const m: GroupMatrix = { ...(prev.matrices[groupId] ?? {}) };
       const key = makeCellKey(service, country);
@@ -138,6 +147,7 @@ export default function App() {
           selectedIds={form.selectedGroupIds}
           customGroupName={form.customGroupName}
           onToggle={toggleGroup}
+          onToggleMany={toggleGroupMany}
           onCustomNameChange={(customGroupName) =>
             setForm((prev) => ({ ...prev, customGroupName }))
           }

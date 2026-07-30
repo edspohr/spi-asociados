@@ -21,10 +21,17 @@ associates (~48) so they can declare which **services** they offer, for which
 
 ## Data shape
 
+Groups are organized as a hierarchy: 4 top-level categories
+(Propiedad Intelectual, Derecho Comercial, Asuntos Regulatorios, Otro grupo).
+Asuntos Regulatorios has 3 subcategories (Uso Humano, Veterinarios, Uso
+Agrícola). Each leaf subgroup declares its own list of service labels
+(free-form Spanish strings, not enum keys), so different subgroups can have
+different services. See `CATEGORIES` in `src/data/form-config.ts`.
+
 Submissions are written in **long / tidy format**: one row per marked
-`(group × service × country)` cell. Single-row groups (Propiedad Intelectual,
-Servicios Legales) emit rows with `servicio: ""`. See `apps-script/Code.gs` for
-the exact header order.
+`(group × service × country)` cell, with `categoria` and `subcategoria`
+columns identifying the hierarchy level. See `apps-script/Code.gs` for the
+exact header order.
 
 ## Run
 

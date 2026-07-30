@@ -1,15 +1,12 @@
 import { useCallback, useRef, useState } from 'react';
 import {
   COUNTRIES,
-  SERVICE_LABELS,
-  SERVICE_TOOLTIPS,
+  isOtherService,
   type Country,
   type Group,
-  type ServiceKey,
 } from '../data/form-config';
 import type { CellState, GroupMatrix } from '../types/form';
 import { makeCellKey } from '../types/form';
-import { InfoTooltip } from './InfoTooltip';
 import { MatrixCell, MatrixLegend } from './MatrixCell';
 
 type Props = {
@@ -17,20 +14,11 @@ type Props = {
   matrix: GroupMatrix;
   otherDetail: string;
   displayLabel?: string;
-  onCellCycle: (service: ServiceKey | '', country: Country) => void;
+  onCellCycle: (service: string, country: Country) => void;
   onOtherDetailChange: (v: string) => void;
 };
 
-/**
- * Rows are: the group's declared services for a multi-row group,
- * or a single empty-string "row" for singleRow groups.
- */
-function rowsFor(group: Group): Array<ServiceKey | ''> {
-  if (group.singleRow) return [''];
-  return group.services ?? [];
-}
-
-function getCell(matrix: GroupMatrix, service: ServiceKey | '', country: Country): CellState {
+function getCell(matrix: GroupMatrix, service: string, country: Country): CellState {
   return matrix[makeCellKey(service, country)] ?? 'empty';
 }
 
@@ -43,7 +31,7 @@ export function GroupSection({
   onOtherDetailChange,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const rows = rowsFor(group);
+  const rows = group.services;
   const cellRefs = useRef<Array<Array<HTMLButtonElement | null>>>([]);
 
   const registerRef = useCallback(
@@ -67,10 +55,11 @@ export function GroupSection({
 
   const label = displayLabel ?? group.label;
 
-  const showOtherDetail =
-    !group.singleRow &&
-    (group.services?.includes('OTRO') ?? false) &&
-    Object.entries(matrix).some(([k]) => k.startsWith('OTRO::'));
+  const showOtherDetail = Object.keys(matrix).some((k) => {
+    const idx = k.indexOf('::');
+    if (idx === -1) return false;
+    return isOtherService(k.slice(0, idx));
+  });
 
   return (
     <section
@@ -97,9 +86,6 @@ export function GroupSection({
           >
             {label}
           </span>
-          {group.singleRow && (
-            <span className="text-xs text-text-subtle">(una sola fila)</span>
-          )}
         </span>
         <span className="text-xs text-text-muted">
           {countMarked === 0 ? 'Sin marcar' : `${countMarked} celda(s) marcada(s)`}
@@ -134,44 +120,37 @@ export function GroupSection({
                 </tr>
               </thead>
               <tbody>
-                {rows.map((service, rIdx) => {
-                  const serviceLabel = service ? SERVICE_LABELS[service] : label;
-                  const tooltip = service ? SERVICE_TOOLTIPS[service] ?? '' : '';
-                  return (
-                    <tr key={service || 'single'}>
-                      <th
-                        scope="row"
-                        className="sticky left-0 z-10 min-w-56 bg-white px-3 py-2 text-left font-normal text-text"
-                      >
-                        <span className="inline-flex items-center">
-                          {serviceLabel}
-                          {tooltip && <InfoTooltip text={tooltip} />}
-                        </span>
-                      </th>
-                      {COUNTRIES.map((country, cIdx) => {
-                        const state = getCell(matrix, service, country);
-                        return (
-                          <td key={country} className="px-1 py-1 text-center align-middle">
-                            <div className="inline-flex">
-                              <MatrixCell
-                                cellRef={registerRef(rIdx, cIdx)}
-                                state={state}
-                                onCycle={() => onCellCycle(service, country)}
-                                onKeyNav={(dir) => {
-                                  if (dir === 'up') focusCell(rIdx - 1, cIdx);
-                                  else if (dir === 'down') focusCell(rIdx + 1, cIdx);
-                                  else if (dir === 'left') focusCell(rIdx, cIdx - 1);
-                                  else focusCell(rIdx, cIdx + 1);
-                                }}
-                                ariaLabel={`${serviceLabel} en ${country}`}
-                              />
-                            </div>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  );
-                })}
+                {rows.map((service, rIdx) => (
+                  <tr key={service}>
+                    <th
+                      scope="row"
+                      className="sticky left-0 z-10 min-w-56 bg-white px-3 py-2 text-left font-normal text-text"
+                    >
+                      {service}
+                    </th>
+                    {COUNTRIES.map((country, cIdx) => {
+                      const state = getCell(matrix, service, country);
+                      return (
+                        <td key={country} className="px-1 py-1 text-center align-middle">
+                          <div className="inline-flex">
+                            <MatrixCell
+                              cellRef={registerRef(rIdx, cIdx)}
+                              state={state}
+                              onCycle={() => onCellCycle(service, country)}
+                              onKeyNav={(dir) => {
+                                if (dir === 'up') focusCell(rIdx - 1, cIdx);
+                                else if (dir === 'down') focusCell(rIdx + 1, cIdx);
+                                else if (dir === 'left') focusCell(rIdx, cIdx - 1);
+                                else focusCell(rIdx, cIdx + 1);
+                              }}
+                              ariaLabel={`${service} en ${country}`}
+                            />
+                          </div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

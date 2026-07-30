@@ -14,143 +14,229 @@ export const COUNTRIES = [
 ] as const;
 export type Country = (typeof COUNTRIES)[number];
 
-export type ServiceKey =
-  | 'CONSULTORIA'
-  | 'HOSTING'
-  | 'PROF_RESP'
-  | 'VIGILANCIA'
-  | 'IMPORT_DIST'
-  | 'SERV_TECNICO'
-  | 'ALMACENAMIENTO'
-  | 'ENSAYOS'
-  | 'OTRO';
-
-export const SERVICE_LABELS: Record<ServiceKey, string> = {
-  CONSULTORIA: 'Consultoría regulatoria',
-  HOSTING: 'Hosting',
-  PROF_RESP: 'Profesional responsable',
-  VIGILANCIA: 'Vigilancia pos mercado',
-  IMPORT_DIST: 'Importación y distribución',
-  SERV_TECNICO: 'Servicio técnico',
-  ALMACENAMIENTO: 'Almacenamiento',
-  ENSAYOS: 'Ensayos clínicos',
-  OTRO: 'Otro',
-};
-
-/**
- * Tooltip glossary: alternative/colloquial names per service.
- * Only HOSTING is confirmed today. Empty strings are TODO(SPI) placeholders —
- * the UI renders a tooltip only when a non-empty string exists.
- */
-export const SERVICE_TOOLTIPS: Partial<Record<ServiceKey, string>> = {
-  HOSTING: 'También conocido como “representación legal”.',
-  CONSULTORIA: '', // TODO(SPI): nombre(s) alternativo(s)
-  PROF_RESP: '', // TODO(SPI): nombre(s) alternativo(s)
-  VIGILANCIA: '', // TODO(SPI): p. ej. tecnovigilancia / farmacovigilancia
-  IMPORT_DIST: '', // TODO(SPI)
-  SERV_TECNICO: '', // TODO(SPI)
-  ALMACENAMIENTO: '', // TODO(SPI)
-  ENSAYOS: '', // TODO(SPI)
-};
-
 export type Group = {
   id: string;
   label: string;
-  singleRow?: boolean;
+  services: string[];
   allowCustomName?: boolean;
-  services?: ServiceKey[];
 };
 
-const FULL: ServiceKey[] = [
-  'CONSULTORIA',
-  'HOSTING',
-  'PROF_RESP',
-  'VIGILANCIA',
-  'IMPORT_DIST',
-  'ALMACENAMIENTO',
-  'ENSAYOS',
-  'OTRO',
+export type Subcategory = {
+  id: string;
+  label: string;
+  groups: Group[];
+};
+
+export type Category = {
+  id: string;
+  label: string;
+  groups?: Group[];
+  subcategories?: Subcategory[];
+};
+
+// Regulatorios "para todos" — común a cada subgrupo de la categoría.
+const COMMON_REGULATORIOS: string[] = [
+  'Consultoría regulatoria',
+  'Hosting/tenencia de registro',
+  'Profesional responsable/responsable técnico',
+  'Importación',
+  'Almacenamiento',
+  'Distribución',
+  'Consultoría para certificaciones GMP/GLP/similares',
+  'Otros',
 ];
 
-const BASIC: ServiceKey[] = [
-  'CONSULTORIA',
-  'HOSTING',
-  'PROF_RESP',
-  'IMPORT_DIST',
-  'ALMACENAMIENTO',
-  'OTRO',
+const SERVICES_PI: string[] = [
+  'Marcas y signos distintivos',
+  'Patentes',
+  'Derechos de autor',
+  'Competencia desleal',
+  'Litigios',
+  'Consultoría de diseño de marca',
+  'Valoración de activos intangibles',
+  'Protección al consumidor',
+  'Diseño e implementación de políticas de protección de datos personales',
+  'Procesos sancionatorios',
 ];
 
-export const GROUPS: Group[] = [
-  { id: 'propiedad_intelectual', label: 'Propiedad Intelectual', singleRow: true },
-  { id: 'servicios_legales', label: 'Servicios Legales', singleRow: true },
+const SERVICES_DERECHO_COMERCIAL: string[] = [
+  'Constitución y derecho societario',
+  'Contratos comerciales',
+  'Fusiones, adquisiciones y due diligence',
+  'Inversión extranjera y aterrizaje en Colombia',
+  'Derecho tributario',
+  'Asesoría en obligaciones y planeación tributaria',
+  'Derecho de aduanas',
+  'Protección de datos personales (Habeas Data)',
+  'Protección al consumidor',
+];
 
+const SERVICES_OTRO_GRUPO: string[] = [
+  'Consultoría regulatoria',
+  'Hosting',
+  'Profesional responsable',
+  'Vigilancia postmercado',
+  'Importación y distribución',
+  'Servicio técnico',
+  'Almacenamiento',
+  'Ensayos clínicos',
+  'Otro',
+];
+
+function regGroup(id: string, label: string, specifics: string[] = []): Group {
+  return { id, label, services: [...COMMON_REGULATORIOS, ...specifics] };
+}
+
+export const CATEGORIES: Category[] = [
   {
-    id: 'dispositivos_medicos',
-    label: 'Dispositivos médicos',
-    services: [
-      'CONSULTORIA',
-      'HOSTING',
-      'PROF_RESP',
-      'VIGILANCIA',
-      'IMPORT_DIST',
-      'SERV_TECNICO',
-      'ALMACENAMIENTO',
-      'ENSAYOS',
-      'OTRO',
+    id: 'propiedad_intelectual',
+    label: 'Propiedad Intelectual',
+    groups: [
+      { id: 'pi', label: 'Propiedad Intelectual', services: SERVICES_PI },
     ],
   },
-
-  { id: 'alimentos', label: 'Alimentos', services: BASIC },
-  { id: 'bebidas_alcoholicas', label: 'Bebidas alcohólicas', services: BASIC },
-  { id: 'cosmeticos', label: 'Cosméticos', services: FULL },
-  { id: 'medicamentos', label: 'Medicamentos', services: FULL },
-  { id: 'homeopaticos', label: 'Homeopáticos', services: FULL },
   {
-    id: 'fitoterapeuticos',
-    label: 'Fito terapéuticos (productos herbales)',
-    services: FULL,
-  },
-  { id: 'suplementos_dietarios', label: 'Suplementos dietarios', services: BASIC },
-
-  { id: 'vet_alimentos', label: 'Productos veterinarios: alimentos', services: BASIC },
-  { id: 'vet_medicamentos', label: 'Productos veterinarios: medicamentos', services: FULL },
-  { id: 'vet_homeopaticos', label: 'Productos veterinarios: homeopáticos', services: FULL },
-  {
-    id: 'vet_fitoterapeuticos',
-    label: 'Productos veterinarios: fito terapéuticos (productos herbales)',
-    services: FULL,
-  },
-  { id: 'vet_suplementos', label: 'Productos veterinarios: suplementos', services: BASIC },
-
-  { id: 'agricolas', label: 'Productos agrícolas', services: BASIC },
-  { id: 'agropecuarios', label: 'Productos agropecuarios', services: BASIC },
-  {
-    id: 'aseo_domestico',
-    label: 'Productos de aseo e higiene de uso doméstico',
-    services: BASIC,
+    id: 'derecho_comercial',
+    label: 'Derecho Comercial',
+    groups: [
+      {
+        id: 'derecho_comercial',
+        label: 'Derecho Comercial',
+        services: SERVICES_DERECHO_COMERCIAL,
+      },
+    ],
   },
   {
-    id: 'aseo_industrial',
-    label: 'Productos de aseo e higiene de uso industrial',
-    services: BASIC,
+    id: 'asuntos_regulatorios',
+    label: 'Asuntos Regulatorios',
+    subcategories: [
+      {
+        id: 'reg_uso_humano',
+        label: 'Uso Humano',
+        groups: [
+          regGroup('reg_dispositivos_medicos', 'Dispositivos Médicos', [
+            'Servicio técnico',
+            'Ensayos clínicos',
+            'Vigilancia postmercado/tecnovigilancia',
+            'Reportes UDI DI',
+          ]),
+          regGroup('reg_alimentos', 'Alimentos', [
+            'Inscripción de planta',
+            'Ensayos de control de calidad',
+            'Elaboración de tablas nutricionales/información nutricional',
+          ]),
+          regGroup('reg_bebidas_alcoholicas', 'Bebidas alcohólicas', [
+            'Inscripción de planta',
+            'Ensayos de control de calidad',
+          ]),
+          regGroup('reg_cosmeticos', 'Cosméticos', [
+            'Ensayos de control de calidad',
+            'Vigilancia postmercado/cosmetovigilancia',
+          ]),
+          regGroup('reg_med_sintesis', 'Medicamentos de síntesis química', [
+            'Vigilancia postmercado/farmacovigilancia',
+            'Ensayos clínicos',
+          ]),
+          regGroup('reg_med_biologicos', 'Medicamentos biológicos', [
+            'Vigilancia postmercado/farmacovigilancia',
+            'Ensayos clínicos',
+          ]),
+          regGroup('reg_homeopaticos', 'Homeopáticos', [
+            'Vigilancia postmercado/farmacovigilancia',
+            'Ensayos clínicos',
+          ]),
+          regGroup('reg_fitoterapeuticos', 'Fito terapéuticos (productos herbales)', [
+            'Inclusión de nuevos ingredientes/indicaciones en listados aprobados',
+          ]),
+          regGroup('reg_suplementos', 'Suplementos dietarios', [
+            'Ensayos de control de calidad',
+            'Elaboración de tablas nutricionales/información nutricional',
+            'Evaluación de seguridad y eficacia de ingredientes',
+            'Inclusión de nuevos ingredientes en listados aprobados',
+          ]),
+          regGroup('reg_aseo_domestico', 'Productos de aseo e higiene de uso doméstico'),
+          regGroup('reg_aseo_industrial', 'Productos de aseo e higiene de uso industrial'),
+          regGroup('reg_plaguicidas', 'Plaguicidas de uso doméstico', [
+            'Ensayos de toxicidad',
+          ]),
+        ],
+      },
+      {
+        id: 'reg_veterinarios',
+        label: 'Veterinarios',
+        groups: [
+          regGroup('vet_alimentos', 'Alimentos'),
+          regGroup('vet_medicamentos', 'Medicamentos'),
+          regGroup('vet_insumos_medicos', 'Insumos médicos'),
+          regGroup('vet_suplementos', 'Suplementos dietarios'),
+        ],
+      },
+      {
+        id: 'reg_uso_agricola',
+        label: 'Uso Agrícola',
+        groups: [
+          regGroup('reg_agricolas', 'Productos agrícolas', [
+            'Ensayos de eficacia agronómica',
+            'Ensayos de toxicidad',
+          ]),
+        ],
+      },
+    ],
   },
-  { id: 'plaguicidas_domesticos', label: 'Plaguicidas de uso doméstico', services: BASIC },
-
   {
-    id: 'otro_grupo',
+    id: 'otro',
     label: 'Otro grupo',
-    allowCustomName: true,
-    services: [
-      'CONSULTORIA',
-      'HOSTING',
-      'PROF_RESP',
-      'VIGILANCIA',
-      'IMPORT_DIST',
-      'SERV_TECNICO',
-      'ALMACENAMIENTO',
-      'ENSAYOS',
-      'OTRO',
+    groups: [
+      {
+        id: 'otro_grupo',
+        label: 'Otro grupo',
+        allowCustomName: true,
+        services: SERVICES_OTRO_GRUPO,
+      },
     ],
   },
 ];
+
+function flattenGroups(categories: Category[]): Group[] {
+  const out: Group[] = [];
+  for (const cat of categories) {
+    if (cat.groups) out.push(...cat.groups);
+    if (cat.subcategories) {
+      for (const sub of cat.subcategories) out.push(...sub.groups);
+    }
+  }
+  return out;
+}
+
+export const GROUPS: Group[] = flattenGroups(CATEGORIES);
+
+export type GroupContext = {
+  category: Category;
+  subcategory?: Subcategory;
+  group: Group;
+};
+
+export function findGroupContext(groupId: string): GroupContext | undefined {
+  for (const category of CATEGORIES) {
+    if (category.groups) {
+      const g = category.groups.find((x) => x.id === groupId);
+      if (g) return { category, group: g };
+    }
+    if (category.subcategories) {
+      for (const subcategory of category.subcategories) {
+        const g = subcategory.groups.find((x) => x.id === groupId);
+        if (g) return { category, subcategory, group: g };
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * The list has two spellings intentionally: Regulatorios uses "Otros" (plural),
+ * "Otro grupo" and other groups use "Otro" (singular). Both must trigger the
+ * detail field.
+ */
+export function isOtherService(service: string): boolean {
+  return service === 'Otro' || service === 'Otros';
+}

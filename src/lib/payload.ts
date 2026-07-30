@@ -1,13 +1,15 @@
 import {
   GROUPS,
-  SERVICE_LABELS,
+  findGroupContext,
+  isOtherService,
   type Country,
   type Group,
-  type ServiceKey,
 } from '../data/form-config';
 import type { CellState, FormState, GroupMatrix } from '../types/form';
 
 export type SubmissionRow = {
+  categoria: string;
+  subcategoria: string;
   grupo: string;
   servicio: string;
   servicioOtroDetalle: string;
@@ -38,16 +40,10 @@ export function groupDisplayLabel(group: Group, customGroupName: string): string
   return group.label;
 }
 
-/**
- * Parse a matrix key back into (service, country). Single-row groups store the
- * service as an empty string, which we preserve on the way out.
- */
-function parseCellKey(key: string): { service: ServiceKey | ''; country: string } {
+function parseCellKey(key: string): { service: string; country: string } {
   const idx = key.indexOf('::');
   if (idx === -1) return { service: '', country: key };
-  const rawService = key.slice(0, idx);
-  const country = key.slice(idx + 2);
-  return { service: rawService === '' ? '' : (rawService as ServiceKey), country };
+  return { service: key.slice(0, idx), country: key.slice(idx + 2) };
 }
 
 /**
@@ -63,6 +59,10 @@ export function buildRows(form: FormState): SubmissionRow[] {
     const group = GROUPS.find((g) => g.id === groupId);
     if (!group) continue;
 
+    const ctx = findGroupContext(groupId);
+    const categoria = ctx?.category.label ?? '';
+    const subcategoria = ctx?.subcategory?.label ?? '';
+
     const matrix: GroupMatrix = form.matrices[groupId] ?? {};
     const grupo = groupDisplayLabel(group, form.customGroupName);
     const otherDetail = (form.otherServiceDetail[groupId] ?? '').trim();
@@ -71,13 +71,12 @@ export function buildRows(form: FormState): SubmissionRow[] {
       if (state !== 'directo' && state !== 'tercerizado') continue;
       const { service, country } = parseCellKey(key);
 
-      const servicio = service ? SERVICE_LABELS[service] : '';
-      const servicioOtroDetalle = service === 'OTRO' ? otherDetail : '';
-
       rows.push({
+        categoria,
+        subcategoria,
         grupo,
-        servicio,
-        servicioOtroDetalle,
+        servicio: service,
+        servicioOtroDetalle: isOtherService(service) ? otherDetail : '',
         modalidad: MODALIDAD[state],
         paisAplicacion: country as Country,
       });
@@ -125,7 +124,10 @@ export function findSubmitBlockers(form: FormState): SubmitBlocker[] {
   // OTRO service marked but no detail supplied — for every affected group
   for (const groupId of form.selectedGroupIds) {
     const matrix = form.matrices[groupId] ?? {};
-    const hasOtro = Object.keys(matrix).some((k) => k.startsWith('OTRO::'));
+    const hasOtro = Object.keys(matrix).some((k) => {
+      const { service } = parseCellKey(k);
+      return isOtherService(service);
+    });
     const detail = (form.otherServiceDetail[groupId] ?? '').trim();
     if (hasOtro && !detail) {
       const g = GROUPS.find((x) => x.id === groupId);

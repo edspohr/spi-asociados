@@ -12,7 +12,7 @@ function base(): FormState {
 
 describe('groupDisplayLabel', () => {
   it('returns the standard label for named groups', () => {
-    const g = GROUPS.find((x) => x.id === 'cosmeticos')!;
+    const g = GROUPS.find((x) => x.id === 'reg_cosmeticos')!;
     expect(groupDisplayLabel(g, 'irrelevant')).toBe('Cosméticos');
   });
 
@@ -32,76 +32,73 @@ describe('buildRows', () => {
     expect(buildRows(base())).toEqual([]);
   });
 
-  it('emits one row per marked cell in a multi-row group', () => {
+  it('emits one row per marked cell with categoria/subcategoria', () => {
     const f = base();
-    f.selectedGroupIds = ['cosmeticos'];
+    f.selectedGroupIds = ['reg_cosmeticos'];
     f.matrices = {
-      cosmeticos: {
-        [makeCellKey('HOSTING', 'Chile')]: 'directo',
-        [makeCellKey('HOSTING', 'Perú')]: 'tercerizado',
-        [makeCellKey('CONSULTORIA', 'Colombia')]: 'directo',
+      reg_cosmeticos: {
+        [makeCellKey('Hosting/tenencia de registro', 'Chile')]: 'directo',
+        [makeCellKey('Consultoría regulatoria', 'Colombia')]: 'tercerizado',
       },
     };
     const rows = buildRows(f);
-    expect(rows).toHaveLength(3);
+    expect(rows).toHaveLength(2);
     expect(rows).toContainEqual({
+      categoria: 'Asuntos Regulatorios',
+      subcategoria: 'Uso Humano',
       grupo: 'Cosméticos',
-      servicio: 'Hosting',
+      servicio: 'Hosting/tenencia de registro',
       servicioOtroDetalle: '',
       modalidad: 'Directo',
       paisAplicacion: 'Chile',
     });
     expect(rows).toContainEqual({
-      grupo: 'Cosméticos',
-      servicio: 'Hosting',
-      servicioOtroDetalle: '',
-      modalidad: 'Tercerizado',
-      paisAplicacion: 'Perú',
-    });
-    expect(rows).toContainEqual({
+      categoria: 'Asuntos Regulatorios',
+      subcategoria: 'Uso Humano',
       grupo: 'Cosméticos',
       servicio: 'Consultoría regulatoria',
       servicioOtroDetalle: '',
-      modalidad: 'Directo',
+      modalidad: 'Tercerizado',
       paisAplicacion: 'Colombia',
     });
   });
 
-  it('emits servicio:"" for single-row groups (Propiedad Intelectual)', () => {
+  it('emits empty subcategoria for PI and Derecho Comercial', () => {
     const f = base();
-    f.selectedGroupIds = ['propiedad_intelectual'];
+    f.selectedGroupIds = ['pi', 'derecho_comercial'];
     f.matrices = {
-      propiedad_intelectual: {
-        [makeCellKey('', 'Argentina')]: 'directo',
+      pi: { [makeCellKey('Patentes', 'Argentina')]: 'directo' },
+      derecho_comercial: {
+        [makeCellKey('Contratos comerciales', 'Colombia')]: 'tercerizado',
       },
-    };
-    expect(buildRows(f)).toEqual([
-      {
-        grupo: 'Propiedad Intelectual',
-        servicio: '',
-        servicioOtroDetalle: '',
-        modalidad: 'Directo',
-        paisAplicacion: 'Argentina',
-      },
-    ]);
-  });
-
-  it('fills servicioOtroDetalle only on OTRO rows and only for that group', () => {
-    const f = base();
-    f.selectedGroupIds = ['cosmeticos', 'medicamentos'];
-    f.matrices = {
-      cosmeticos: { [makeCellKey('OTRO', 'Brasil')]: 'directo' },
-      medicamentos: { [makeCellKey('HOSTING', 'Brasil')]: 'tercerizado' },
-    };
-    f.otherServiceDetail = {
-      cosmeticos: 'Estudios de estabilidad',
-      medicamentos: 'no debería aparecer',
     };
     const rows = buildRows(f);
-    const otroRow = rows.find((r) => r.grupo === 'Cosméticos')!;
-    const hostingRow = rows.find((r) => r.grupo === 'Medicamentos')!;
-    expect(otroRow.servicioOtroDetalle).toBe('Estudios de estabilidad');
-    expect(hostingRow.servicioOtroDetalle).toBe('');
+    const piRow = rows.find((r) => r.grupo === 'Propiedad Intelectual')!;
+    const dcRow = rows.find((r) => r.grupo === 'Derecho Comercial')!;
+    expect(piRow.categoria).toBe('Propiedad Intelectual');
+    expect(piRow.subcategoria).toBe('');
+    expect(piRow.servicio).toBe('Patentes');
+    expect(dcRow.categoria).toBe('Derecho Comercial');
+    expect(dcRow.subcategoria).toBe('');
+  });
+
+  it('fills servicioOtroDetalle on "Otros" (plural) and "Otro" (singular)', () => {
+    const f = base();
+    f.selectedGroupIds = ['reg_cosmeticos', 'otro_grupo'];
+    f.customGroupName = 'Reactivos in vitro';
+    f.matrices = {
+      reg_cosmeticos: { [makeCellKey('Otros', 'Brasil')]: 'directo' },
+      otro_grupo: { [makeCellKey('Otro', 'Brasil')]: 'directo' },
+    };
+    f.otherServiceDetail = {
+      reg_cosmeticos: 'Estudios de estabilidad',
+      otro_grupo: 'Servicio X',
+    };
+    const rows = buildRows(f);
+    const regRow = rows.find((r) => r.grupo === 'Cosméticos')!;
+    const otroRow = rows.find((r) => r.grupo === 'Reactivos in vitro')!;
+    expect(regRow.servicioOtroDetalle).toBe('Estudios de estabilidad');
+    expect(otroRow.servicioOtroDetalle).toBe('Servicio X');
   });
 
   it('replaces "Otro grupo" with the custom group name in every row', () => {
@@ -109,17 +106,17 @@ describe('buildRows', () => {
     f.selectedGroupIds = ['otro_grupo'];
     f.customGroupName = 'Reactivos in vitro';
     f.matrices = {
-      otro_grupo: { [makeCellKey('CONSULTORIA', 'Uruguay')]: 'tercerizado' },
+      otro_grupo: { [makeCellKey('Consultoría regulatoria', 'Uruguay')]: 'tercerizado' },
     };
     expect(buildRows(f)[0].grupo).toBe('Reactivos in vitro');
   });
 
   it('ignores matrix data for groups the user has since de-selected', () => {
     const f = base();
-    f.selectedGroupIds = ['cosmeticos'];
+    f.selectedGroupIds = ['reg_cosmeticos'];
     f.matrices = {
-      cosmeticos: { [makeCellKey('HOSTING', 'Chile')]: 'directo' },
-      alimentos: { [makeCellKey('HOSTING', 'Chile')]: 'directo' }, // stale
+      reg_cosmeticos: { [makeCellKey('Hosting/tenencia de registro', 'Chile')]: 'directo' },
+      reg_alimentos: { [makeCellKey('Hosting/tenencia de registro', 'Chile')]: 'directo' }, // stale
     };
     const rows = buildRows(f);
     expect(rows).toHaveLength(1);
@@ -130,11 +127,12 @@ describe('buildRows', () => {
 describe('buildPayload', () => {
   it('bundles company and rows', () => {
     const f = base();
-    f.selectedGroupIds = ['propiedad_intelectual'];
-    f.matrices = { propiedad_intelectual: { [makeCellKey('', 'Chile')]: 'directo' } };
+    f.selectedGroupIds = ['pi'];
+    f.matrices = { pi: { [makeCellKey('Patentes', 'Chile')]: 'directo' } };
     const p = buildPayload(f);
     expect(p.company.razonSocial).toBe('Acme S.A.');
     expect(p.rows).toHaveLength(1);
+    expect(p.company.correosAdicionales).toEqual([]);
   });
 });
 
@@ -146,7 +144,7 @@ describe('findSubmitBlockers', () => {
 
   it('flags when no cells are marked in the selected groups', () => {
     const f = base();
-    f.selectedGroupIds = ['cosmeticos'];
+    f.selectedGroupIds = ['reg_cosmeticos'];
     const codes = findSubmitBlockers(f).map((b) => b.code);
     expect(codes).toContain('no-cells');
   });
@@ -154,23 +152,34 @@ describe('findSubmitBlockers', () => {
   it('flags "otro_grupo" selected without a custom name', () => {
     const f = base();
     f.selectedGroupIds = ['otro_grupo'];
-    f.matrices = { otro_grupo: { [makeCellKey('HOSTING', 'Chile')]: 'directo' } };
+    f.matrices = { otro_grupo: { [makeCellKey('Hosting', 'Chile')]: 'directo' } };
     const codes = findSubmitBlockers(f).map((b) => b.code);
     expect(codes).toContain('otro-grupo-sin-nombre');
   });
 
-  it('flags OTRO service marked without a detail', () => {
+  it('flags "Otros" (plural) service marked without a detail', () => {
     const f = base();
-    f.selectedGroupIds = ['cosmeticos'];
-    f.matrices = { cosmeticos: { [makeCellKey('OTRO', 'Chile')]: 'directo' } };
+    f.selectedGroupIds = ['reg_cosmeticos'];
+    f.matrices = { reg_cosmeticos: { [makeCellKey('Otros', 'Chile')]: 'directo' } };
+    const codes = findSubmitBlockers(f).map((b) => b.code);
+    expect(codes.some((c) => c.startsWith('otro-servicio-sin-detalle:'))).toBe(true);
+  });
+
+  it('flags "Otro" (singular) service marked without a detail', () => {
+    const f = base();
+    f.selectedGroupIds = ['otro_grupo'];
+    f.customGroupName = 'X';
+    f.matrices = { otro_grupo: { [makeCellKey('Otro', 'Chile')]: 'directo' } };
     const codes = findSubmitBlockers(f).map((b) => b.code);
     expect(codes.some((c) => c.startsWith('otro-servicio-sin-detalle:'))).toBe(true);
   });
 
   it('returns [] when the form is complete and consistent', () => {
     const f = base();
-    f.selectedGroupIds = ['cosmeticos'];
-    f.matrices = { cosmeticos: { [makeCellKey('HOSTING', 'Chile')]: 'directo' } };
+    f.selectedGroupIds = ['reg_cosmeticos'];
+    f.matrices = {
+      reg_cosmeticos: { [makeCellKey('Hosting/tenencia de registro', 'Chile')]: 'directo' },
+    };
     expect(findSubmitBlockers(f)).toEqual([]);
   });
 });

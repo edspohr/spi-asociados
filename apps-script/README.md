@@ -55,8 +55,15 @@ timestamp, razon_social, dba, pais_origen, anio_inicio, num_empleados,
 rep_legal, contacto_principal_nombre, contacto_principal_correo,
 contacto_principal_telefono, contacto_regulatorio_nombre,
 contacto_regulatorio_correo, contacto_regulatorio_telefono, correo_adicional,
-grupo, servicio, servicio_otro_detalle, modalidad, pais_aplicacion
+categoria, subcategoria, grupo, servicio, servicio_otro_detalle, modalidad,
+pais_aplicacion
 ```
+
+- `categoria` is one of `Propiedad Intelectual`, `Derecho Comercial`,
+  `Asuntos Regulatorios`, `Otro grupo`.
+- `subcategoria` is `Uso Humano`, `Veterinarios`, or `Uso Agrícola` for
+  regulatorios rows; empty for the others.
+- `correo_adicional` holds all additional emails joined by `; `.
 
 Every submission shares the same `timestamp` across all its rows; pivot on
 `timestamp` (or filter to the max per `razon_social`) to get the latest
@@ -74,3 +81,16 @@ via `JSON.parse(e.postData.contents)`.
 Every time you edit `Code.gs`, you have to redeploy: **Deploy ▸ Manage
 deployments ▸** the pencil icon on the active deployment **▸** *New version*
 **▸ Deploy**. The `/exec` URL stays the same.
+
+### Schema changes to an existing sheet
+
+When `HEADERS` changes (e.g. new columns added like `categoria`/`subcategoria`),
+the existing header row in the "Respuestas" sheet is out of date. `doPost`
+only writes the header when the sheet is empty, so you must **delete row 1 of
+the "Respuestas" sheet** (or rename the tab so a fresh one is created). On the
+next submission, `doPost` will re-append the current `HEADERS` row and future
+data will align.
+
+If you don't do this, incoming data still lands in the correct columns
+(writes go by index, not by header name), but the visible header row will not
+match the data.
