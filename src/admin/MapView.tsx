@@ -5,7 +5,7 @@ import {
   Geography,
   ZoomableGroup,
 } from 'react-simple-maps';
-import worldTopoJson from 'world-atlas/countries-110m.json';
+import worldTopoJson from 'world-atlas/countries-50m.json';
 import type { AssociateDoc } from './types';
 import type { Filters } from './filters';
 import { associatesByCountry, coverageByCountry } from './filters';

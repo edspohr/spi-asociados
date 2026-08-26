@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import worldTopoJson from 'world-atlas/countries-50m.json';
 import {
   COUNTRIES,
+  M49_TO_CODE2,
   REGIONS,
   countriesByRegion,
   countryName,
@@ -38,11 +40,49 @@ describe('COUNTRIES', () => {
     }
   });
 
+  it('has a global country universe (190–200 entries)', () => {
+    expect(COUNTRIES.length).toBeGreaterThanOrEqual(190);
+    expect(COUNTRIES.length).toBeLessThanOrEqual(200);
+  });
+
   it('includes the 12 legacy Sudamérica countries', () => {
     const sudamerica = countriesByRegion('Sudamérica').map((c) => c.code2).sort();
     expect(sudamerica).toEqual(
       ['AR', 'BO', 'BR', 'CL', 'CO', 'EC', 'GY', 'PY', 'PE', 'SR', 'UY', 'VE'].sort(),
     );
+  });
+
+  it('every region is non-empty', () => {
+    for (const region of REGIONS) {
+      expect(countriesByRegion(region).length).toBeGreaterThan(0);
+    }
+  });
+
+  it('every country has a positive population', () => {
+    for (const c of COUNTRIES) {
+      expect(c.population).toBeGreaterThan(0);
+    }
+  });
+
+  it('names within each region are sorted alphabetically', () => {
+    for (const region of REGIONS) {
+      const names = countriesByRegion(region).map((c) => c.nameEs);
+      const sorted = [...names].sort((a, b) => a.localeCompare(b, 'es'));
+      expect(names).toEqual(sorted);
+    }
+  });
+
+  it('REGIONS display order puts the Americas first, granular', () => {
+    expect(REGIONS).toEqual([
+      'Sudamérica',
+      'Centroamérica',
+      'Caribe',
+      'Norteamérica',
+      'Europa',
+      'Asia',
+      'África',
+      'Oceanía',
+    ]);
   });
 });
 
@@ -60,5 +100,25 @@ describe('lookups', () => {
   it('countryName returns the Spanish name or the code as fallback', () => {
     expect(countryName('AR')).toBe('Argentina');
     expect(countryName('XX')).toBe('XX');
+  });
+});
+
+describe('M49 mapping', () => {
+  it('maps every COUNTRIES entry to at least one M49 code', () => {
+    const covered = new Set(Object.values(M49_TO_CODE2));
+    for (const c of COUNTRIES) {
+      expect(covered.has(c.code2)).toBe(true);
+    }
+  });
+
+  it('every M49 mapping resolves to a country in the world-atlas topojson', () => {
+    const geoIds = new Set(
+      (worldTopoJson.objects.countries.geometries as Array<{ id?: string }>)
+        .map((g) => g.id)
+        .filter((id): id is string => Boolean(id)),
+    );
+    for (const m49 of Object.keys(M49_TO_CODE2)) {
+      expect(geoIds.has(m49)).toBe(true);
+    }
   });
 });

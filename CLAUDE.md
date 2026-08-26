@@ -130,3 +130,4 @@ firestore.rules Deny-all client access; all reads/writes go through Functions
 - All identifiers, props, and file names are English.
 - Autosave the entire draft to `localStorage` on every change; restore on load.
 - Append-only submissions; no editing of prior responses in v1.
+- Push to origin/main after each committed phase.
