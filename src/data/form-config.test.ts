@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { CATEGORIES, GROUPS, findGroupContext, type Group } from './form-config';
+import {
+  CATEGORIES,
+  COMMON_REGULATORIOS,
+  GROUPS,
+  findGroupContext,
+  type Group,
+} from './form-config';
 
 describe('CATEGORIES', () => {
   it('exposes 4 top-level categories', () => {
@@ -29,20 +35,31 @@ describe('CATEGORIES', () => {
     expect(sub('reg_uso_agricola').groups).toHaveLength(1);
   });
 
-  it('every regulatorios subgroup starts with the 7 common services', () => {
+  it('every regulatorios subgroup starts with the 5 common services', () => {
     const reg = CATEGORIES.find((c) => c.id === 'asuntos_regulatorios')!;
     const commonHead = [
       'Consultoría regulatoria',
       'Hosting/tenencia de registro',
       'Profesional responsable/responsable técnico',
       'Importación',
-      'Almacenamiento',
-      'Distribución',
       'Consultoría para certificaciones GMP/GLP/similares',
     ];
     for (const sub of reg.subcategories!) {
       for (const g of sub.groups) {
-        expect(g.services.slice(0, 7)).toEqual(commonHead);
+        expect(g.services.slice(0, 5)).toEqual(commonHead);
+      }
+    }
+  });
+
+  it('COMMON_REGULATORIOS has exactly 5 services and drops Almacenamiento/Distribución', () => {
+    expect(COMMON_REGULATORIOS).toHaveLength(5);
+    expect(COMMON_REGULATORIOS).not.toContain('Almacenamiento');
+    expect(COMMON_REGULATORIOS).not.toContain('Distribución');
+    const reg = CATEGORIES.find((c) => c.id === 'asuntos_regulatorios')!;
+    for (const sub of reg.subcategories!) {
+      for (const g of sub.groups) {
+        expect(g.services).not.toContain('Almacenamiento');
+        expect(g.services).not.toContain('Distribución');
       }
     }
   });
@@ -121,9 +138,9 @@ describe('findGroupContext', () => {
 });
 
 describe('Dispositivos Médicos specifics', () => {
-  it('appends its 4 unique services after the 7 common', () => {
+  it('appends its 4 unique services after the 5 common', () => {
     const g = byId('reg_dispositivos_medicos');
-    expect(g.services.slice(7)).toEqual([
+    expect(g.services.slice(5)).toEqual([
       'Servicio técnico',
       'Ensayos clínicos',
       'Vigilancia postmercado/tecnovigilancia',

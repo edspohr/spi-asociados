@@ -19,13 +19,11 @@ export type Category = {
 };
 
 // Regulatorios "para todos" — común a cada subgrupo de la categoría.
-const COMMON_REGULATORIOS: string[] = [
+export const COMMON_REGULATORIOS: string[] = [
   'Consultoría regulatoria',
   'Hosting/tenencia de registro',
   'Profesional responsable/responsable técnico',
   'Importación',
-  'Almacenamiento',
-  'Distribución',
   'Consultoría para certificaciones GMP/GLP/similares',
 ];
 
