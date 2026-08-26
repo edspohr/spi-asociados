@@ -4,15 +4,19 @@ import type { Filters } from './filters';
 import { coverageByCountry, hasActiveFilters } from './filters';
 import {
   COUNTRIES,
-  REGIONS,
   countryName,
   findCountry,
   type CountryCode,
-  type Region,
 } from '../data/countries';
 import { InfoTooltip } from '../components/InfoTooltip';
-import { coverageBuckets } from './coverage-scale';
+import {
+  SPOF_STROKE,
+  coverageBuckets,
+  type CoverageBucket,
+} from './coverage-scale';
 import { PopulationKpis } from './PopulationKpis';
+import { groupUniverseByBucket, toGapCsv, type BucketGroup } from './gap-grouping';
+import { downloadCsv } from './csv';
 
 type Props = {
   all: AssociateDoc[];
@@ -21,32 +25,25 @@ type Props = {
 };
 
 /**
- * The "dónde me falta" panel, grouped by region so it stays compact even with
- * a global country list. Each region is collapsed by default and shows a
- * one-line summary; expanding it reveals the country chips.
- *
- * "Sin cobertura" = 0 associates. "Un solo asociado" = single-point-of-failure
- * (Ana's "dónde tengo backup vs uno solo").
+ * Bucket-first "dónde me falta" panel. Sections mirror the map's coverage
+ * legend, ordered by severity (sin cobertura → un solo → blues). Chips
+ * inside each bucket are sorted by population DESC so the biggest gaps
+ * surface first.
  */
 export function GapPanel({ all, filters, onSelectCountry }: Props) {
   const coverage = useMemo(() => coverageByCountry(all, filters), [all, filters]);
   const universe = useMemo<CountryCode[]>(() => COUNTRIES.map((c) => c.code2), []);
 
-  const byRegion = useMemo(() => bucketByRegion(universe, coverage), [universe, coverage]);
-  // Reads the two "gap" buckets from the shared scale so the swatch colours
-  // stay in sync with the map legend even before the full restructure in P16/5.
-  const sharedBuckets = useMemo(() => coverageBuckets(2), []);
-  const zeroSwatch = sharedBuckets[0]?.color ?? '#e2e8f0';
-  const oneSwatch = sharedBuckets[1]?.color ?? '#c7e2f6';
-  const totals = useMemo(() => {
-    let zero = 0;
-    let one = 0;
-    for (const r of byRegion.values()) {
-      zero += r.zero.length;
-      one += r.one.length;
-    }
-    return { zero, one };
-  }, [byRegion]);
+  const maxCount = useMemo(() => {
+    let m = 0;
+    for (const n of coverage.values()) if (n > m) m = n;
+    return m;
+  }, [coverage]);
+  const buckets = useMemo(() => coverageBuckets(maxCount), [maxCount]);
+  const groups = useMemo(
+    () => groupUniverseByBucket(universe, coverage, buckets),
+    [universe, coverage, buckets],
+  );
 
   const scopeHint = filters.servicio
     ? `Servicio: “${filters.servicio}”`
@@ -54,6 +51,11 @@ export function GapPanel({ all, filters, onSelectCountry }: Props) {
       ? `Categoría: ${filters.categoria}`
       : 'Sin filtro de servicio';
   const filtered = hasActiveFilters(filters);
+
+  function handleExportGaps() {
+    const stamp = new Date().toISOString().slice(0, 10);
+    downloadCsv(`brechas-${stamp}.csv`, toGapCsv(coverage, buckets));
+  }
 
   return (
     <section
@@ -65,39 +67,23 @@ export function GapPanel({ all, filters, onSelectCountry }: Props) {
           <h3 id="gap-title" className="text-sm font-semibold text-primary">
             Brechas de cobertura
           </h3>
-          <div className="flex items-center gap-2 text-[11px]">
-            <TotalBadge tone="danger" count={totals.zero} label="sin" />
-            <TotalBadge tone="warn" count={totals.one} label="con 1" />
-          </div>
+          <button
+            type="button"
+            onClick={handleExportGaps}
+            className="rounded border border-border bg-white px-2 py-0.5 text-[11px] text-primary hover:border-primary"
+            title="Exporta un CSV con una fila por país del universo (nombre, región, población, cantidad de asociados y bucket)."
+          >
+            Exportar brechas (CSV)
+          </button>
         </div>
         <p className="mt-1 text-xs text-text-muted">
           <strong>Sin cobertura</strong>: países donde ningún asociado ofrece el alcance
           seleccionado. <strong>Un solo asociado</strong>: hay cobertura pero no hay
           respaldo — si ese asociado no puede tomar el trabajo, no hay reemplazo.
         </p>
-        <ul className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-text-muted">
-          <li className="flex items-center gap-1">
-            <span
-              aria-hidden
-              className="inline-block h-2.5 w-3 rounded-sm border border-black/10"
-              style={{ backgroundColor: zeroSwatch }}
-            />
-            <span>Gris · sin asociados</span>
-          </li>
-          <li className="flex items-center gap-1">
-            <span
-              aria-hidden
-              className="inline-block h-2.5 w-3 rounded-sm border border-black/10"
-              style={{ backgroundColor: oneSwatch }}
-            />
-            <span>Azul claro · con asociados (marca “1” cuando hay uno solo)</span>
-          </li>
-        </ul>
         <p
           className={`mt-1 rounded px-2 py-1 text-xs ${
-            filtered
-              ? 'bg-amber-50 text-amber-900'
-              : 'text-text-subtle'
+            filtered ? 'bg-amber-50 text-amber-900' : 'text-text-subtle'
           }`}
         >
           <strong>Alcance:</strong> {scopeHint}
@@ -110,194 +96,184 @@ export function GapPanel({ all, filters, onSelectCountry }: Props) {
         <PopulationKpis all={all} filters={filters} />
       </header>
 
-      <ul className="mt-3 flex flex-col gap-1.5">
-        {REGIONS.map((region) => {
-          const b = byRegion.get(region);
-          if (!b || b.total === 0) return null;
-          return (
-            <RegionRow
-              key={region}
-              region={region}
-              zero={b.zero}
-              one={b.one}
-              total={b.total}
-              onSelectCountry={onSelectCountry}
-            />
-          );
-        })}
+      <ul className="mt-3 flex flex-col gap-2">
+        {groups.map((g) => (
+          <BucketSection
+            key={g.bucket.id}
+            group={g}
+            onSelectCountry={onSelectCountry}
+          />
+        ))}
       </ul>
-
-      {totals.zero === 0 && totals.one === 0 && (
-        <p className="mt-3 text-xs text-text-subtle">
-          Todos los países del alcance tienen al menos dos asociados. Sin brechas.
-        </p>
-      )}
     </section>
   );
 }
 
-type RegionBucket = { zero: CountryCode[]; one: CountryCode[]; total: number };
-
-function bucketByRegion(
-  universe: CountryCode[],
-  coverage: Map<CountryCode, number>,
-): Map<Region, RegionBucket> {
-  const out = new Map<Region, RegionBucket>();
-  for (const code of universe) {
-    const region = findCountry(code)?.region;
-    if (!region) continue;
-    const bucket = out.get(region) ?? { zero: [], one: [], total: 0 };
-    const n = coverage.get(code) ?? 0;
-    if (n === 0) bucket.zero.push(code);
-    else if (n === 1) bucket.one.push(code);
-    bucket.total += 1;
-    out.set(region, bucket);
-  }
-  for (const b of out.values()) {
-    b.zero.sort((a, b2) => countryName(a).localeCompare(countryName(b2), 'es'));
-    b.one.sort((a, b2) => countryName(a).localeCompare(countryName(b2), 'es'));
-  }
-  return out;
-}
-
-function RegionRow({
-  region,
-  zero,
-  one,
-  total,
+function BucketSection({
+  group,
   onSelectCountry,
 }: {
-  region: Region;
-  zero: CountryCode[];
-  one: CountryCode[];
-  total: number;
+  group: BucketGroup;
   onSelectCountry: (code: CountryCode) => void;
 }) {
-  const hasGaps = zero.length + one.length > 0;
-  const [open, setOpen] = useState(false);
+  const isSin = group.bucket.id === 'sin_cobertura';
+  const isUno = group.bucket.id === 'un_solo';
+  const startOpen = !isSin;
+  const [open, setOpen] = useState(startOpen);
+  const [showAll, setShowAll] = useState(false);
+  const isEmpty = group.count === 0;
+
+  const displayed = isSin && !showAll ? group.codes.slice(0, 15) : group.codes;
+  const hasMore = isSin && group.codes.length > 15;
 
   return (
-    <li className="rounded border border-border">
+    <li
+      className={`rounded border ${
+        isSin ? 'border-l-4 border-l-amber-500 border-border' : 'border-border'
+      }`}
+    >
       <button
         type="button"
-        onClick={() => hasGaps && setOpen((o) => !o)}
+        onClick={() => !isEmpty && setOpen((o) => !o)}
         aria-expanded={open}
-        disabled={!hasGaps}
+        disabled={isEmpty}
         className={`flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs ${
-          hasGaps ? 'hover:bg-surface-muted' : 'cursor-default'
+          isEmpty ? 'cursor-default' : 'hover:bg-surface-muted'
         }`}
       >
-        <span aria-hidden className={`inline-block text-text-subtle transition ${open ? 'rotate-90' : ''}`}>
+        <span
+          aria-hidden
+          className={`inline-block text-text-subtle transition ${
+            open && !isEmpty ? 'rotate-90' : ''
+          }`}
+        >
           ▶
         </span>
-        <span className="flex-1 font-medium text-text">{region}</span>
-        <span className="flex items-center gap-1.5 text-[11px]">
-          {zero.length > 0 && <Badge tone="danger">{zero.length} sin</Badge>}
-          {one.length > 0 && <Badge tone="warn">{one.length} con 1</Badge>}
-          {!hasGaps && <span className="text-text-subtle">✓ ok</span>}
-          <span className="text-text-subtle">· {total}</span>
+        <span
+          aria-hidden
+          className="inline-block h-3 w-4 rounded-sm"
+          style={{
+            backgroundColor: group.bucket.color,
+            border: isUno
+              ? `1.5px solid ${SPOF_STROKE}`
+              : '1px solid rgba(0,0,0,0.1)',
+          }}
+        />
+        <span className="flex-1 font-medium text-text">
+          {isSin && <span aria-hidden>⚠︎ </span>}
+          {group.bucket.labelEs}
+        </span>
+        <span className="text-[11px] text-text-subtle">
+          {group.count} país{group.count === 1 ? '' : 'es'} · {formatPopulation(group.population)}
         </span>
       </button>
 
-      {open && hasGaps && (
+      {open && !isEmpty && (
         <div className="border-t border-border px-2.5 py-2">
-          {zero.length > 0 && (
-            <ChipList
-              label="Sin cobertura"
-              tooltip="Países en los que ningún asociado atiende el alcance filtrado."
-              codes={zero}
-              tone="danger"
-              onSelect={onSelectCountry}
-            />
+          {isSin && (
+            <p className="mb-1 flex items-center text-[10px] text-text-subtle">
+              Ordenados por población descendente. Clic en un país para filtrar el panel.
+              <InfoTooltip text="La sección más urgente. Iniciar prospección aquí primero." />
+            </p>
           )}
-          {one.length > 0 && (
-            <ChipList
-              label="Un solo asociado"
-              tooltip="Un único asociado cubre estos países — sin respaldo si no puede atender."
-              codes={one}
-              tone="warn"
-              onSelect={onSelectCountry}
-            />
+          <ul className="flex flex-wrap gap-1">
+            {displayed.map((code) => (
+              <li key={code}>
+                <CountryChip
+                  code={code}
+                  bucket={group.bucket}
+                  isUno={isUno}
+                  onSelect={onSelectCountry}
+                />
+              </li>
+            ))}
+          </ul>
+          {hasMore && (
+            <button
+              type="button"
+              onClick={() => setShowAll((s) => !s)}
+              className="mt-2 text-[11px] text-primary underline hover:opacity-80"
+            >
+              {showAll
+                ? 'Mostrar sólo los 15 más poblados'
+                : `Mostrar todos (${group.codes.length - 15} más)`}
+            </button>
           )}
         </div>
+      )}
+
+      {isEmpty && (
+        <p className="border-t border-border px-2.5 py-1.5 text-[11px] text-text-subtle">
+          {emptyLabelFor(group.bucket)}
+        </p>
       )}
     </li>
   );
 }
 
-function ChipList({
-  label,
-  tooltip,
-  codes,
-  tone,
+function CountryChip({
+  code,
+  bucket,
+  isUno,
   onSelect,
 }: {
-  label: string;
-  tooltip: string;
-  codes: CountryCode[];
-  tone: 'danger' | 'warn';
+  code: CountryCode;
+  bucket: CoverageBucket;
+  isUno: boolean;
   onSelect: (code: CountryCode) => void;
 }) {
-  const chipCls =
-    tone === 'danger'
-      ? 'border-red-200 bg-red-50 text-danger hover:border-danger'
-      : 'border-amber-200 bg-amber-50 text-amber-800 hover:border-amber-500';
+  const def = findCountry(code);
+  const region = def?.region ?? '';
+  const pop = def?.population ?? 0;
+  const useLight = bucket.textOnColor === 'light';
+
+  const tooltip = isUno
+    ? `Filtrar por ${countryName(code)} (${region}) — un solo asociado, sin respaldo.`
+    : `Filtrar por ${countryName(code)} · Región: ${region} · Población: ${formatPopulation(pop)}`;
+
   return (
-    <div className="mt-1 first:mt-0">
-      <p className="flex items-center text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-        {label}
-        <InfoTooltip text={tooltip} />
-      </p>
-      <p className="mt-0.5 text-[10px] text-text-subtle">
-        Clic en un país para filtrar el panel a ese país.
-      </p>
-      <ul className="mt-1 flex flex-wrap gap-1">
-        {codes.map((c) => (
-          <li key={c}>
-            <button
-              type="button"
-              onClick={() => onSelect(c)}
-              title={
-                tone === 'warn'
-                  ? `Filtrar por ${countryName(c)} — un solo asociado, sin respaldo.`
-                  : `Filtrar por ${countryName(c)}`
-              }
-              className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px] ${chipCls}`}
-            >
-              <span>{countryName(c)}</span>
-              {tone === 'warn' && (
-                <span
-                  aria-label="Un solo asociado"
-                  className="inline-flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-amber-800 px-1 text-[9px] font-semibold leading-none text-white"
-                >
-                  1
-                </span>
-              )}
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <button
+      type="button"
+      onClick={() => onSelect(code)}
+      title={tooltip}
+      className="inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px]"
+      style={{
+        backgroundColor: bucket.color,
+        borderColor: isUno ? SPOF_STROKE : 'rgba(0,0,0,0.15)',
+        color: useLight ? '#ffffff' : '#0f172a',
+      }}
+    >
+      <span>{countryName(code)}</span>
+      <span className={useLight ? 'text-white/80' : 'text-black/60'}>
+        · {formatPopulation(pop)}
+      </span>
+      {isUno && (
+        <span
+          aria-label="Un solo asociado"
+          className="inline-flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-amber-800 px-1 text-[9px] font-semibold leading-none text-white"
+        >
+          1
+        </span>
+      )}
+    </button>
   );
 }
 
-function Badge({ children, tone }: { children: React.ReactNode; tone: 'danger' | 'warn' }) {
-  const cls =
-    tone === 'danger' ? 'bg-red-100 text-danger' : 'bg-amber-100 text-amber-800';
-  return <span className={`rounded px-1.5 py-0.5 ${cls}`}>{children}</span>;
+function emptyLabelFor(bucket: CoverageBucket): string {
+  switch (bucket.id) {
+    case 'sin_cobertura':
+      return 'Sin brechas: todos los países del universo tienen al menos un asociado bajo el alcance actual.';
+    case 'un_solo':
+      return 'Ningún país queda con un único asociado bajo el alcance actual.';
+    default:
+      return `Ningún país cae en “${bucket.labelEs}” bajo el alcance actual.`;
+  }
 }
 
-function TotalBadge({ count, tone, label }: { count: number; tone: 'danger' | 'warn'; label: string }) {
-  if (count === 0) return null;
-  const cls =
-    tone === 'danger' ? 'bg-red-100 text-danger' : 'bg-amber-100 text-amber-800';
-  const tooltip =
-    tone === 'danger'
-      ? `${count} país(es) sin ningún asociado bajo el alcance actual.`
-      : `${count} país(es) con un único asociado — sin respaldo si no puede atender.`;
-  return (
-    <span className={`rounded px-1.5 py-0.5 font-semibold ${cls}`} title={tooltip}>
-      {count} {label}
-    </span>
-  );
+function formatPopulation(millions: number): string {
+  if (millions >= 1000) return `${(millions / 1000).toFixed(1).replace('.', ',')}MM`;
+  if (millions >= 10) return `${millions.toFixed(0)}M`;
+  if (millions >= 1) return `${millions.toFixed(1).replace('.', ',')}M`;
+  if (millions > 0) return `${(millions * 1000).toFixed(0)}K`;
+  return '—';
 }
