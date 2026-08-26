@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { type Group } from '../data/form-config';
+import { displayGroupTitle, type Group } from '../data/form-config';
 import type { CountryCode, CountryDef } from '../data/countries';
 import type { CellState, GroupMatrix } from '../types/form';
 import { makeCellKey } from '../types/form';
@@ -9,10 +9,10 @@ type Props = {
   group: Group;
   countries: CountryDef[];
   matrix: GroupMatrix;
+  /** Overrides the group name portion of the title (used by "Otro grupo" when
+   *  the associate provides a custom name). The subcategory eyebrow, if any,
+   *  is still derived from the group id. */
   displayLabel?: string;
-  /** Optional "Categoría · Subcategoría" line shown in the collapsed header
-   *  to disambiguate groups that share a label across subcategories. */
-  breadcrumb?: string;
   onCellCycle: (service: string, country: CountryCode) => void;
   /** Cycle the whole column (all services under `country`) as one uniform state. */
   onColumnCycle: (country: CountryCode) => void;
@@ -29,7 +29,6 @@ export function GroupSection({
   countries,
   matrix,
   displayLabel,
-  breadcrumb,
   onCellCycle,
   onColumnCycle,
   onRowCycle,
@@ -37,6 +36,7 @@ export function GroupSection({
   const [open, setOpen] = useState(false);
   const rows = group.services;
   const cellRefs = useRef<Array<Array<HTMLButtonElement | null>>>([]);
+  const title = displayGroupTitle(group.id);
 
   const registerRef = useCallback(
     (r: number, c: number) => (el: HTMLButtonElement | null) => {
@@ -58,7 +58,7 @@ export function GroupSection({
   );
 
   const countMarked = Object.keys(matrix).length;
-  const label = displayLabel ?? group.label;
+  const name = displayLabel ?? title.name;
 
   return (
     <section
@@ -80,15 +80,17 @@ export function GroupSection({
             ▶
           </span>
           <span className="flex flex-col">
+            {title.eyebrow && (
+              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-accent-600">
+                {title.eyebrow}
+              </span>
+            )}
             <span
               id={`group-${group.id}-title`}
               className="font-semibold text-primary"
             >
-              {label}
+              {name}
             </span>
-            {breadcrumb && (
-              <span className="text-xs text-text-subtle">{breadcrumb}</span>
-            )}
           </span>
         </span>
         <span className="text-xs text-text-muted">

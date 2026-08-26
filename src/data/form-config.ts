@@ -212,6 +212,27 @@ export function findGroupContext(groupId: string): GroupContext | undefined {
   return undefined;
 }
 
+export type GroupTitle = {
+  /** Subcategory label shown as an eyebrow. Undefined for groups in flat
+   *  categories (Propiedad Intelectual, Derecho Comercial, Otro grupo). */
+  eyebrow?: string;
+  /** Group label itself. Falls back to the group id when the id is unknown. */
+  name: string;
+};
+
+/**
+ * Composes the visible title for a group section. Groups under a subcategory
+ * get the subcategory label as an eyebrow so titles remain unambiguous when the
+ * same group name exists under more than one subcategory (e.g. "Alimentos"
+ * under both Uso Humano and Veterinarios).
+ */
+export function displayGroupTitle(groupId: string): GroupTitle {
+  const ctx = findGroupContext(groupId);
+  if (!ctx) return { name: groupId };
+  if (ctx.subcategory) return { eyebrow: ctx.subcategory.label, name: ctx.group.label };
+  return { name: ctx.group.label };
+}
+
 export type SelectedCategoryBucket = {
   category: Category;
   /** Groups selected directly under `category` (no subcategory). */

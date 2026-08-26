@@ -3,6 +3,7 @@ import {
   CATEGORIES,
   COMMON_REGULATORIOS,
   GROUPS,
+  displayGroupTitle,
   findGroupContext,
   groupSelectedByCategory,
   type Group,
@@ -135,6 +136,29 @@ describe('findGroupContext', () => {
 
   it('returns undefined for unknown ids', () => {
     expect(findGroupContext('nope')).toBeUndefined();
+  });
+});
+
+describe('displayGroupTitle', () => {
+  it('adds the subcategory as an eyebrow for groups inside a subcategory', () => {
+    expect(displayGroupTitle('reg_alimentos')).toEqual({
+      eyebrow: 'Uso Humano',
+      name: 'Alimentos',
+    });
+    expect(displayGroupTitle('vet_alimentos')).toEqual({
+      eyebrow: 'Veterinarios',
+      name: 'Alimentos',
+    });
+  });
+
+  it('has no eyebrow for groups in flat categories', () => {
+    expect(displayGroupTitle('pi')).toEqual({ name: 'Propiedad Intelectual' });
+    expect(displayGroupTitle('derecho_comercial')).toEqual({ name: 'Derecho Comercial' });
+    expect(displayGroupTitle('otro_grupo')).toEqual({ name: 'Otro grupo' });
+  });
+
+  it('falls back to the id itself for unknown groups', () => {
+    expect(displayGroupTitle('does-not-exist')).toEqual({ name: 'does-not-exist' });
   });
 });
 

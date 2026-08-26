@@ -306,7 +306,6 @@ export default function App() {
                         group={g}
                         countries={activeCountries}
                         matrix={form.matrices[g.id] ?? {}}
-                        breadcrumb={bucket.category.label}
                         displayLabel={
                           g.id === 'otro_grupo' && form.customGroupName.trim()
                             ? `Otro grupo: ${form.customGroupName.trim()}`
@@ -318,17 +317,13 @@ export default function App() {
                       />
                     ))}
                     {bucket.subcategories.map(({ subcategory, groups }) => (
-                      <div key={subcategory.id} className="flex flex-col gap-2 pl-3">
-                        <h4 className="text-sm font-semibold text-text-muted">
-                          {subcategory.label}
-                        </h4>
+                      <div key={subcategory.id} className="flex flex-col gap-3">
                         {groups.map((g) => (
                           <GroupSection
                             key={g.id}
                             group={g}
                             countries={activeCountries}
                             matrix={form.matrices[g.id] ?? {}}
-                            breadcrumb={`${bucket.category.label} · ${subcategory.label}`}
                             onCellCycle={(service, country) => cycleCell(g.id, service, country)}
                             onColumnCycle={(country) => cycleColumn(g.id, country)}
                             onRowCycle={(service) => cycleRow(g.id, service)}
