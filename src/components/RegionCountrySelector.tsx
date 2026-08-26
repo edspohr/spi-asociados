@@ -20,16 +20,28 @@ type Props = {
  * remove; the "Todos/Ninguno" shortcut toggles the whole region.
  *
  * Regions are collapsed by default; opening one auto-selects every country in
- * that region unless the user has explicitly touched it before.
+ * that region unless the user has explicitly touched it before. When that
+ * happens we surface an inline notice inside the region so the auto-selection
+ * is not silent.
  */
 export function RegionCountrySelector({ selected, onChange }: Props) {
   const selectedSet = useMemo(() => new Set(selected), [selected]);
+  // Regions whose current selection was produced by opening the region (as
+  // opposed to the user ticking countries by hand). Cleared per-region as
+  // soon as the user edits that region.
+  const [autoFilledRegions, setAutoFilledRegions] = useState<Set<Region>>(
+    () => new Set(),
+  );
 
   function setCountry(code: CountryCode, on: boolean) {
     const next = new Set(selectedSet);
     if (on) next.add(code);
     else next.delete(code);
     onChange(Array.from(next));
+    // Any manual tick/untick counts as "the user has edited this region",
+    // so we retire the auto-fill notice.
+    const region = COUNTRIES.find((c) => c.code2 === code)?.region;
+    if (region) clearAutoFilled(region);
   }
 
   function setRegionAll(region: Region, on: boolean) {
@@ -40,7 +52,34 @@ export function RegionCountrySelector({ selected, onChange }: Props) {
       else next.delete(c);
     }
     onChange(Array.from(next));
+    clearAutoFilled(region);
   }
+
+  function markAutoFilled(region: Region) {
+    setAutoFilledRegions((prev) => {
+      const next = new Set(prev);
+      next.add(region);
+      return next;
+    });
+  }
+
+  function clearAutoFilled(region: Region) {
+    setAutoFilledRegions((prev) => {
+      if (!prev.has(region)) return prev;
+      const next = new Set(prev);
+      next.delete(region);
+      return next;
+    });
+  }
+
+  const regionsWithSelection = useMemo(() => {
+    const out: Region[] = [];
+    for (const region of REGIONS) {
+      const codes = countriesByRegion(region).map((c) => c.code2);
+      if (codes.some((c) => selectedSet.has(c))) out.push(region);
+    }
+    return out;
+  }, [selectedSet]);
 
   return (
     <section
@@ -52,9 +91,10 @@ export function RegionCountrySelector({ selected, onChange }: Props) {
           Regiones y países de operación
         </h2>
         <p className="text-sm text-text-muted">
-          Marque las regiones en las que su firma opera. Al abrir una región puede destildar los
-          países específicos que no aplican; sólo estos países aparecerán en las matrices del
-          paso siguiente.
+          Marque las regiones en las que su firma opera.{' '}
+          <strong>Al abrir una región se marcan todos sus países por defecto</strong> —
+          destilde los que no correspondan. Sólo estos países aparecerán en las matrices
+          del paso siguiente.
         </p>
       </header>
 
@@ -64,16 +104,28 @@ export function RegionCountrySelector({ selected, onChange }: Props) {
             key={region}
             region={region}
             selectedSet={selectedSet}
+            autoFilled={autoFilledRegions.has(region)}
             onCountryChange={setCountry}
             onRegionAllChange={setRegionAll}
+            onAutoFilled={markAutoFilled}
           />
         ))}
       </div>
 
       <p className="mt-4 text-xs text-text-subtle">
-        {selected.length === 0
-          ? 'Aún no ha seleccionado ningún país.'
-          : `${selected.length} país(es) seleccionados.`}
+        {selected.length === 0 ? (
+          'Aún no ha seleccionado ningún país.'
+        ) : (
+          <>
+            {selected.length} país(es) seleccionados
+            {regionsWithSelection.length > 0 && (
+              <> en {regionsWithSelection.length} región(es):{' '}
+                <span className="text-text-muted">{regionsWithSelection.join(', ')}</span>
+              </>
+            )}
+            .
+          </>
+        )}
       </p>
     </section>
   );
@@ -82,24 +134,30 @@ export function RegionCountrySelector({ selected, onChange }: Props) {
 function RegionBlock({
   region,
   selectedSet,
+  autoFilled,
   onCountryChange,
   onRegionAllChange,
+  onAutoFilled,
 }: {
   region: Region;
   selectedSet: Set<CountryCode>;
+  autoFilled: boolean;
   onCountryChange: (code: CountryCode, on: boolean) => void;
   onRegionAllChange: (region: Region, on: boolean) => void;
+  onAutoFilled: (region: Region) => void;
 }) {
   const countries = useMemo(() => countriesByRegion(region), [region]);
   const selectedCount = countries.filter((c) => selectedSet.has(c.code2)).length;
   const [open, setOpen] = useState(false);
 
   // First time the user opens a region, if nothing is selected in it yet,
-  // auto-select every country in that region (Ana's "default all" rule).
+  // auto-select every country in that region (Ana's "default all" rule) and
+  // flag it so we can render the auto-fill notice.
   function handleToggleOpen() {
     const nextOpen = !open;
     if (nextOpen && selectedCount === 0) {
       onRegionAllChange(region, true);
+      onAutoFilled(region);
     }
     setOpen(nextOpen);
   }
@@ -142,6 +200,16 @@ function RegionBlock({
 
       {open && (
         <div id={`region-${region}-body`} className="border-t border-border p-4">
+          {autoFilled && (
+            <p
+              role="status"
+              data-testid={`autofill-notice-${region}`}
+              className="mb-3 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+            >
+              <strong>Se marcaron automáticamente todos los países de {region}.</strong>{' '}
+              Destilde los que su firma no atiende.
+            </p>
+          )}
           <ul
             role="group"
             className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2 md:grid-cols-3"
