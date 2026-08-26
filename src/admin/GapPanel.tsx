@@ -16,9 +16,6 @@ import { coverageBuckets } from './coverage-scale';
 type Props = {
   all: AssociateDoc[];
   filters: Filters;
-  /** When set, gaps are computed against this universe instead of all ISO
-   *  countries — usually the set of countries that appear in the data. */
-  focus?: CountryCode[];
   onSelectCountry: (code: CountryCode) => void;
 };
 
@@ -30,12 +27,9 @@ type Props = {
  * "Sin cobertura" = 0 associates. "Un solo asociado" = single-point-of-failure
  * (Ana's "dónde tengo backup vs uno solo").
  */
-export function GapPanel({ all, filters, focus, onSelectCountry }: Props) {
+export function GapPanel({ all, filters, onSelectCountry }: Props) {
   const coverage = useMemo(() => coverageByCountry(all, filters), [all, filters]);
-  const universe = useMemo<CountryCode[]>(() => {
-    if (focus && focus.length > 0) return focus;
-    return COUNTRIES.map((c) => c.code2);
-  }, [focus]);
+  const universe = useMemo<CountryCode[]>(() => COUNTRIES.map((c) => c.code2), []);
 
   const byRegion = useMemo(() => bucketByRegion(universe, coverage), [universe, coverage]);
   // Reads the two "gap" buckets from the shared scale so the swatch colours

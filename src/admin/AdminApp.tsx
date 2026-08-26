@@ -90,7 +90,6 @@ export function AdminApp() {
     [associates, filters.categoria, filters.subcategoria],
   );
   const countriesInData = useMemo(() => distinctCountries(associates), [associates]);
-  const focusCountries: CountryCode[] = countriesInData.length > 0 ? countriesInData : [];
 
   if (state.status === 'error' && state.unauthorized) {
     return (
@@ -161,13 +160,11 @@ export function AdminApp() {
           <MapView
             all={associates}
             filters={filters}
-            focus={focusCountries}
             onSelectCountry={(pais) => setPatch({ pais: filters.pais === pais ? '' : pais })}
           />
           <GapPanel
             all={associates}
             filters={filters}
-            focus={focusCountries}
             onSelectCountry={(pais) => setPatch({ pais: filters.pais === pais ? '' : pais })}
           />
         </div>

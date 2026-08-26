@@ -3,26 +3,61 @@ import {
   ComposableMap,
   Geographies,
   Geography,
+  Marker,
   ZoomableGroup,
 } from 'react-simple-maps';
 import worldTopoJson from 'world-atlas/countries-50m.json';
 import type { AssociateDoc } from './types';
 import type { Filters } from './filters';
 import { associatesByCountry, coverageByCountry } from './filters';
-import { code2FromM49, countryName, type CountryCode } from '../data/countries';
-import { SPOF_STROKE, bucketFor, coverageBuckets } from './coverage-scale';
+import {
+  COUNTRIES,
+  code2FromM49,
+  countryName,
+  type CountryCode,
+} from '../data/countries';
+import {
+  SPOF_STROKE,
+  bucketFor,
+  coverageBuckets,
+} from './coverage-scale';
 
 type Props = {
   all: AssociateDoc[];
   filters: Filters;
-  /** Countries considered part of the operating universe. Countries outside
-   *  this set render neutral and non-interactive. When empty, all mapped
-   *  countries are considered. */
-  focus?: CountryCode[];
   onSelectCountry: (code: CountryCode) => void;
 };
 
-const COLOR_OUT_OF_FOCUS = '#f1f5f9'; // slate-100 — faintly grey, no border
+// A universe country geometry that is not in COUNTRIES-with-associates still
+// gets the neutral bucket fill. Non-universe territories (dependencies,
+// Antarctica, W. Sahara, etc.) get this fainter tone and no border so the
+// universe boundary is visible.
+const COLOR_NON_UNIVERSE = '#f4f6f8';
+
+// Selected-country highlight. High-contrast against both the neutral grey
+// bucket and the darkest blue in the ramp.
+const SELECTED_STROKE = '#111827'; // slate-900
+const SELECTED_HALO = '#facc15'; // yellow-400
+
+// Approximate country centroids [lng, lat] for the label allowlist. Only
+// countries large enough to fit a small number label at scale 155 are
+// listed — everything else stays unlabelled so the resting map is clean.
+const LABEL_CENTROIDS: Record<string, [number, number]> = {
+  RU: [95, 62], CA: [-105, 60], CN: [104, 36], US: [-98, 40], BR: [-53, -10],
+  AU: [134, -25], IN: [79, 22], AR: [-64, -35], KZ: [67, 48], DZ: [3, 28],
+  CD: [23, -3], SA: [45, 25], MX: [-102, 24], ID: [118, -3], SD: [30, 15],
+  LY: [17, 27], IR: [53, 32], MN: [104, 46], PE: [-75, -10], TD: [19, 15],
+  NE: [10, 17], AO: [17, -12], ML: [-4, 17], ZA: [24, -29], CO: [-73, 4],
+  ET: [40, 8], BO: [-64, -17], MR: [-10, 20], EG: [30, 27], TZ: [35, -6],
+  NG: [8, 10], VE: [-66, 7], NA: [17, -22], MZ: [35, -18], PK: [70, 30],
+  TR: [35, 39], CL: [-71, -37], ZM: [28, -14], MM: [96, 21], AF: [67, 33],
+  SO: [46, 6], CF: [21, 7], MG: [47, -19], BW: [24, -22], KE: [38, 1],
+  FR: [2, 47], YE: [48, 15], TH: [101, 15], ES: [-3, 40], TM: [59, 39],
+  CM: [12, 6], PG: [145, -6], SE: [17, 63], MA: [-6, 32], UZ: [64, 41],
+  IQ: [44, 33], PY: [-58, -23], ZW: [30, -19], JP: [138, 37], DE: [10, 51],
+  FI: [26, 64], VN: [107, 16], NO: [10, 62], PL: [19, 52], UA: [32, 49],
+  IT: [12, 43], EC: [-78, -1], BF: [-2, 12], RO: [25, 46], GB: [-2, 54],
+};
 
 type Tooltip = {
   x: number;
@@ -31,22 +66,35 @@ type Tooltip = {
   count: number;
   bucketLabel: string;
   associates: AssociateDoc[];
+  inUniverse: boolean;
 };
 
-export function MapView({ all, filters, focus, onSelectCountry }: Props) {
+export function MapView({ all, filters, onSelectCountry }: Props) {
   const coverage = useMemo(() => coverageByCountry(all, filters), [all, filters]);
   const bag = useMemo(() => associatesByCountry(all, filters), [all, filters]);
-  const focusSet = useMemo(
-    () => (focus && focus.length > 0 ? new Set(focus) : null),
-    [focus],
-  );
+
+  // Universe = every country SPI operates in per the static list. A country
+  // with zero associates is still part of the universe and stays clickable.
+  const universe = useMemo(() => new Set(COUNTRIES.map((c) => c.code2)), []);
+
   const maxCount = useMemo(() => {
     let m = 0;
     for (const n of coverage.values()) if (n > m) m = n;
     return m;
   }, [coverage]);
   const buckets = useMemo(() => coverageBuckets(maxCount), [maxCount]);
+
   const [tt, setTt] = useState<Tooltip | null>(null);
+  const selected = filters.pais || null;
+
+  const labels = useMemo(() => {
+    const out: Array<{ code: string; coord: [number, number]; count: number }> = [];
+    for (const [code, coord] of Object.entries(LABEL_CENTROIDS)) {
+      const count = coverage.get(code) ?? 0;
+      if (count >= 1) out.push({ code, coord, count });
+    }
+    return out;
+  }, [coverage]);
 
   return (
     <section
@@ -74,26 +122,44 @@ export function MapView({ all, filters, focus, onSelectCountry }: Props) {
               {({ geographies }) =>
                 geographies.map((geo) => {
                   const code2 = code2FromM49(geo.id as string);
-                  const inFocus = code2 && (!focusSet || focusSet.has(code2));
+                  const inUniverse = Boolean(code2 && universe.has(code2));
                   const count = (code2 && coverage.get(code2)) || 0;
-                  const bucket = inFocus ? bucketFor(count, buckets) : null;
-                  const color = bucket ? bucket.color : COLOR_OUT_OF_FOCUS;
-                  const isSpof = Boolean(inFocus) && count === 1;
-                  const baseStroke = isSpof ? SPOF_STROKE : '#ffffff';
-                  const baseStrokeWidth = isSpof ? 1.1 : 0.4;
+                  const bucket = inUniverse ? bucketFor(count, buckets) : null;
+                  const isSelected = Boolean(selected && code2 === selected);
+                  const isSpof = inUniverse && count === 1;
+
+                  const fill = bucket ? bucket.color : COLOR_NON_UNIVERSE;
+                  let stroke: string;
+                  let strokeWidth: number;
+                  if (isSelected) {
+                    stroke = SELECTED_STROKE;
+                    strokeWidth = 2.2;
+                  } else if (isSpof) {
+                    stroke = SPOF_STROKE;
+                    strokeWidth = 1.1;
+                  } else if (inUniverse) {
+                    stroke = '#ffffff';
+                    strokeWidth = 0.4;
+                  } else {
+                    // Non-universe: no border so the universe outline pops.
+                    stroke = 'transparent';
+                    strokeWidth = 0;
+                  }
+
                   return (
                     <Geography
                       key={geo.rsmKey}
                       geography={geo}
                       onMouseEnter={(e) => {
-                        if (!code2) return;
+                        if (!inUniverse || !code2) return;
                         setTt({
                           x: e.clientX,
                           y: e.clientY,
                           countryLabel: countryName(code2),
                           count,
-                          bucketLabel: bucket?.labelEs ?? 'Fuera del alcance',
+                          bucketLabel: bucket?.labelEs ?? '',
                           associates: bag.get(code2) ?? [],
+                          inUniverse: true,
                         });
                       }}
                       onMouseMove={(e) =>
@@ -101,29 +167,58 @@ export function MapView({ all, filters, focus, onSelectCountry }: Props) {
                       }
                       onMouseLeave={() => setTt(null)}
                       onClick={() => {
-                        if (code2) onSelectCountry(code2);
+                        if (inUniverse && code2) onSelectCountry(code2);
                       }}
                       style={{
                         default: {
-                          fill: color,
-                          stroke: baseStroke,
-                          strokeWidth: baseStrokeWidth,
+                          fill,
+                          stroke,
+                          strokeWidth,
                           outline: 'none',
-                          cursor: code2 ? 'pointer' : 'default',
+                          cursor: inUniverse ? 'pointer' : 'default',
                         },
                         hover: {
-                          fill: color,
-                          stroke: isSpof ? SPOF_STROKE : '#043356',
-                          strokeWidth: isSpof ? 1.4 : 0.8,
+                          fill,
+                          stroke: isSelected
+                            ? SELECTED_STROKE
+                            : inUniverse
+                              ? isSpof
+                                ? SPOF_STROKE
+                                : '#043356'
+                              : 'transparent',
+                          strokeWidth: isSelected ? 2.6 : inUniverse ? (isSpof ? 1.4 : 0.8) : 0,
                           outline: 'none',
                         },
-                        pressed: { fill: color, outline: 'none' },
+                        pressed: { fill, outline: 'none' },
                       }}
                     />
                   );
                 })
               }
             </Geographies>
+            {labels.map((l) => {
+              const bucket = bucketFor(l.count, buckets);
+              const useLight = bucket.textOnColor === 'light';
+              return (
+                <Marker key={l.code} coordinates={l.coord}>
+                  <text
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    style={{
+                      fontSize: 9,
+                      fontWeight: 600,
+                      fill: useLight ? '#ffffff' : '#0f172a',
+                      pointerEvents: 'none',
+                      paintOrder: 'stroke',
+                      stroke: useLight ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.85)',
+                      strokeWidth: 1.4,
+                    }}
+                  >
+                    {l.count}
+                  </text>
+                </Marker>
+              );
+            })}
           </ZoomableGroup>
         </ComposableMap>
 
@@ -142,7 +237,7 @@ export function MapView({ all, filters, focus, onSelectCountry }: Props) {
             <p className="font-semibold text-primary">{tt.countryLabel}</p>
             <p className="text-text-muted">
               {tt.count === 0
-                ? 'Sin asociados'
+                ? `Sin asociados${tt.bucketLabel ? ` · ${tt.bucketLabel}` : ''}`
                 : `${tt.count} asociado${tt.count === 1 ? '' : 's'} · ${tt.bucketLabel}`}
             </p>
             {tt.associates.length > 0 && (
@@ -183,6 +278,20 @@ export function MapView({ all, filters, focus, onSelectCountry }: Props) {
             <span>{b.labelEs}</span>
           </li>
         ))}
+        {selected && (
+          <li className="flex items-center gap-1.5">
+            <span
+              aria-hidden
+              className="inline-block h-3 w-4 rounded-sm"
+              style={{
+                backgroundColor: '#ffffff',
+                border: `2px solid ${SELECTED_STROKE}`,
+                boxShadow: `0 0 0 1px ${SELECTED_HALO}`,
+              }}
+            />
+            <span>Seleccionado — clic para quitar el filtro</span>
+          </li>
+        )}
       </ul>
     </section>
   );
