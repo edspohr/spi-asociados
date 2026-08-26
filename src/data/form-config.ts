@@ -211,3 +211,36 @@ export function findGroupContext(groupId: string): GroupContext | undefined {
   }
   return undefined;
 }
+
+export type SelectedCategoryBucket = {
+  category: Category;
+  /** Groups selected directly under `category` (no subcategory). */
+  directGroups: Group[];
+  /** Groups selected inside each subcategory, in `category.subcategories` order. */
+  subcategories: Array<{ subcategory: Subcategory; groups: Group[] }>;
+};
+
+/**
+ * Groups the user's selection by category (and by subcategory inside Asuntos
+ * Regulatorios) so stage 2 can render stable, canonical headings instead of a
+ * flat list. Order follows CATEGORIES / subcategories, not the click order.
+ * Categories with no selection are omitted; unknown ids are ignored.
+ */
+export function groupSelectedByCategory(
+  selectedGroupIds: string[],
+): SelectedCategoryBucket[] {
+  const selected = new Set(selectedGroupIds);
+  const out: SelectedCategoryBucket[] = [];
+  for (const category of CATEGORIES) {
+    const directGroups = (category.groups ?? []).filter((g) => selected.has(g.id));
+    const subcategories: SelectedCategoryBucket['subcategories'] = [];
+    for (const sub of category.subcategories ?? []) {
+      const groups = sub.groups.filter((g) => selected.has(g.id));
+      if (groups.length > 0) subcategories.push({ subcategory: sub, groups });
+    }
+    if (directGroups.length > 0 || subcategories.length > 0) {
+      out.push({ category, directGroups, subcategories });
+    }
+  }
+  return out;
+}

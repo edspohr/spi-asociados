@@ -4,6 +4,7 @@ import {
   COMMON_REGULATORIOS,
   GROUPS,
   findGroupContext,
+  groupSelectedByCategory,
   type Group,
 } from './form-config';
 
@@ -146,6 +147,49 @@ describe('Dispositivos Médicos specifics', () => {
       'Vigilancia postmercado/tecnovigilancia',
       'Reportes UDI DI',
     ]);
+  });
+});
+
+describe('groupSelectedByCategory', () => {
+  it('groups by category in CATEGORIES order regardless of input order', () => {
+    const buckets = groupSelectedByCategory(['reg_alimentos', 'pi', 'derecho_comercial']);
+    expect(buckets.map((b) => b.category.id)).toEqual([
+      'propiedad_intelectual',
+      'derecho_comercial',
+      'asuntos_regulatorios',
+    ]);
+  });
+
+  it('nests regulatorios groups under their subcategory bucket', () => {
+    const buckets = groupSelectedByCategory([
+      'reg_alimentos',
+      'vet_medicamentos',
+      'reg_agricolas',
+    ]);
+    const reg = buckets.find((b) => b.category.id === 'asuntos_regulatorios')!;
+    expect(reg.directGroups).toEqual([]);
+    expect(reg.subcategories.map((s) => s.subcategory.id)).toEqual([
+      'reg_uso_humano',
+      'reg_veterinarios',
+      'reg_uso_agricola',
+    ]);
+    expect(reg.subcategories[0].groups.map((g) => g.id)).toEqual(['reg_alimentos']);
+    expect(reg.subcategories[1].groups.map((g) => g.id)).toEqual(['vet_medicamentos']);
+  });
+
+  it('omits categories with no selected groups', () => {
+    const buckets = groupSelectedByCategory(['pi']);
+    expect(buckets.map((b) => b.category.id)).toEqual(['propiedad_intelectual']);
+  });
+
+  it('ignores unknown ids without crashing', () => {
+    const buckets = groupSelectedByCategory(['does-not-exist', 'pi']);
+    expect(buckets.map((b) => b.category.id)).toEqual(['propiedad_intelectual']);
+    expect(buckets[0].directGroups.map((g) => g.id)).toEqual(['pi']);
+  });
+
+  it('returns [] when nothing is selected', () => {
+    expect(groupSelectedByCategory([])).toEqual([]);
   });
 });
 

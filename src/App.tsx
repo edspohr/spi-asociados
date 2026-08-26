@@ -7,7 +7,7 @@ import { DraftIndicator } from './components/DraftIndicator';
 import { ReviewAndSubmit } from './components/ReviewAndSubmit';
 import { SuccessScreen } from './components/SuccessScreen';
 import { StepIndicator } from './components/StepIndicator';
-import { GROUPS } from './data/form-config';
+import { GROUPS, groupSelectedByCategory } from './data/form-config';
 import { COUNTRIES, type CountryCode, type CountryDef } from './data/countries';
 import { EMPTY_FORM, makeCellKey, type FormState, type GroupMatrix } from './types/form';
 import { nextCellState } from './components/MatrixCell';
@@ -51,6 +51,11 @@ export default function App() {
 
   const selectedGroups = useMemo(
     () => GROUPS.filter((g) => form.selectedGroupIds.includes(g.id)),
+    [form.selectedGroupIds],
+  );
+
+  const groupedSelection = useMemo(
+    () => groupSelectedByCategory(form.selectedGroupIds),
     [form.selectedGroupIds],
   );
 
@@ -290,21 +295,48 @@ export default function App() {
                   No hay grupos seleccionados. Vuelva al paso 1 para elegir.
                 </p>
               ) : (
-                selectedGroups.map((g) => (
-                  <GroupSection
-                    key={g.id}
-                    group={g}
-                    countries={activeCountries}
-                    matrix={form.matrices[g.id] ?? {}}
-                    displayLabel={
-                      g.id === 'otro_grupo' && form.customGroupName.trim()
-                        ? `Otro grupo: ${form.customGroupName.trim()}`
-                        : undefined
-                    }
-                    onCellCycle={(service, country) => cycleCell(g.id, service, country)}
-                    onColumnCycle={(country) => cycleColumn(g.id, country)}
-                    onRowCycle={(service) => cycleRow(g.id, service)}
-                  />
+                groupedSelection.map((bucket) => (
+                  <div key={bucket.category.id} className="flex flex-col gap-3">
+                    <h3 className="mt-2 text-base font-semibold text-primary">
+                      {bucket.category.label}
+                    </h3>
+                    {bucket.directGroups.map((g) => (
+                      <GroupSection
+                        key={g.id}
+                        group={g}
+                        countries={activeCountries}
+                        matrix={form.matrices[g.id] ?? {}}
+                        breadcrumb={bucket.category.label}
+                        displayLabel={
+                          g.id === 'otro_grupo' && form.customGroupName.trim()
+                            ? `Otro grupo: ${form.customGroupName.trim()}`
+                            : undefined
+                        }
+                        onCellCycle={(service, country) => cycleCell(g.id, service, country)}
+                        onColumnCycle={(country) => cycleColumn(g.id, country)}
+                        onRowCycle={(service) => cycleRow(g.id, service)}
+                      />
+                    ))}
+                    {bucket.subcategories.map(({ subcategory, groups }) => (
+                      <div key={subcategory.id} className="flex flex-col gap-2 pl-3">
+                        <h4 className="text-sm font-semibold text-text-muted">
+                          {subcategory.label}
+                        </h4>
+                        {groups.map((g) => (
+                          <GroupSection
+                            key={g.id}
+                            group={g}
+                            countries={activeCountries}
+                            matrix={form.matrices[g.id] ?? {}}
+                            breadcrumb={`${bucket.category.label} · ${subcategory.label}`}
+                            onCellCycle={(service, country) => cycleCell(g.id, service, country)}
+                            onColumnCycle={(country) => cycleColumn(g.id, country)}
+                            onRowCycle={(service) => cycleRow(g.id, service)}
+                          />
+                        ))}
+                      </div>
+                    ))}
+                  </div>
                 ))
               )}
             </section>
