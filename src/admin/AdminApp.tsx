@@ -70,22 +70,6 @@ export function AdminApp() {
     });
   }, []);
 
-  if (state.status === 'error' && state.unauthorized) {
-    return (
-      <AccessGate
-        error={
-          adminKey
-            ? 'La clave no es válida o está vencida. Vuelva a intentar.'
-            : undefined
-        }
-        onKey={(k) => {
-          window.sessionStorage.setItem(SESSION_KEY, k);
-          setAdminKey(k);
-        }}
-      />
-    );
-  }
-
   const associates = state.status === 'ready' ? state.data : [];
   const filteredAssociates = useMemo(
     () => applyFilters(associates, filters),
@@ -107,6 +91,22 @@ export function AdminApp() {
   );
   const countriesInData = useMemo(() => distinctCountries(associates), [associates]);
   const focusCountries: CountryCode[] = countriesInData.length > 0 ? countriesInData : [];
+
+  if (state.status === 'error' && state.unauthorized) {
+    return (
+      <AccessGate
+        error={
+          adminKey
+            ? 'La clave no es válida o está vencida. Vuelva a intentar.'
+            : undefined
+        }
+        onKey={(k) => {
+          window.sessionStorage.setItem(SESSION_KEY, k);
+          setAdminKey(k);
+        }}
+      />
+    );
+  }
 
   function handleExport() {
     const rows = filteredRows(associates, filters);
