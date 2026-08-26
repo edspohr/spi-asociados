@@ -5,7 +5,6 @@ import {
   Geography,
   ZoomableGroup,
 } from 'react-simple-maps';
-import { scaleThreshold } from 'd3-scale';
 import worldTopoJson from 'world-atlas/countries-110m.json';
 import type { AssociateDoc } from './types';
 import type { Filters } from './filters';
@@ -15,22 +14,22 @@ import { code2FromM49, countryName, type CountryCode } from '../data/countries';
 type Props = {
   all: AssociateDoc[];
   filters: Filters;
+  /** Countries considered part of the operating universe (usually the countries
+   *  that appear anywhere in the data). Countries outside this set stay neutral
+   *  regardless of coverage. When empty, all countries are considered. */
+  focus?: CountryCode[];
   onSelectCountry: (code: CountryCode) => void;
 };
 
-// Discrete choropleth scale. 0 associates → light grey (no data). Uses a
-// single-hue blue ramp so the eye can rank counts intuitively.
-const COLOR_SCALE = scaleThreshold<number, string>()
-  .domain([1, 2, 3, 5])
-  .range(['#e8ecef', '#c9deed', '#78b4dd', '#2e86c1', '#134e75']);
-
-const LEGEND: Array<{ label: string; color: string }> = [
-  { label: '0', color: '#e8ecef' },
-  { label: '1', color: '#c9deed' },
-  { label: '2', color: '#78b4dd' },
-  { label: '3–4', color: '#2e86c1' },
-  { label: '5+', color: '#134e75' },
-];
+// Coverage colors read as a gap map: red = no associates in the universe;
+// yellow = at least one; neutral grey = country is outside the current focus.
+const COLOR_NEUTRAL = '#e8ecef';
+const COLOR_RED = '#ef4444'; // red-500
+const COLOR_YELLOW = '#fbbf24'; // amber-400
+// SPOF (single-point-of-failure) countries stay yellow but get a distinct dark
+// outline so the "one associate = no backup" signal survives without adding a
+// third colour — also serves as the non-colour channel for color-blind users.
+const COLOR_SPOF_STROKE = '#7c2d12'; // amber-900
 
 type Tooltip = {
   x: number;
@@ -40,9 +39,13 @@ type Tooltip = {
   associates: AssociateDoc[];
 };
 
-export function MapView({ all, filters, onSelectCountry }: Props) {
+export function MapView({ all, filters, focus, onSelectCountry }: Props) {
   const coverage = useMemo(() => coverageByCountry(all, filters), [all, filters]);
   const bag = useMemo(() => associatesByCountry(all, filters), [all, filters]);
+  const focusSet = useMemo(
+    () => (focus && focus.length > 0 ? new Set(focus) : null),
+    [focus],
+  );
   const [tt, setTt] = useState<Tooltip | null>(null);
 
   return (
@@ -71,8 +74,16 @@ export function MapView({ all, filters, onSelectCountry }: Props) {
               {({ geographies }) =>
                 geographies.map((geo) => {
                   const code2 = code2FromM49(geo.id as string);
+                  const inFocus = code2 && (!focusSet || focusSet.has(code2));
                   const count = (code2 && coverage.get(code2)) || 0;
-                  const color = COLOR_SCALE(count);
+                  const color = !inFocus
+                    ? COLOR_NEUTRAL
+                    : count === 0
+                      ? COLOR_RED
+                      : COLOR_YELLOW;
+                  const isSpof = Boolean(inFocus) && count === 1;
+                  const baseStroke = isSpof ? COLOR_SPOF_STROKE : '#ffffff';
+                  const baseStrokeWidth = isSpof ? 1.1 : 0.4;
                   return (
                     <Geography
                       key={geo.rsmKey}
@@ -97,15 +108,15 @@ export function MapView({ all, filters, onSelectCountry }: Props) {
                       style={{
                         default: {
                           fill: color,
-                          stroke: '#ffffff',
-                          strokeWidth: 0.4,
+                          stroke: baseStroke,
+                          strokeWidth: baseStrokeWidth,
                           outline: 'none',
                           cursor: code2 ? 'pointer' : 'default',
                         },
                         hover: {
                           fill: color,
-                          stroke: '#043356',
-                          strokeWidth: 0.8,
+                          stroke: isSpof ? COLOR_SPOF_STROKE : '#043356',
+                          strokeWidth: isSpof ? 1.4 : 0.8,
                           outline: 'none',
                         },
                         pressed: { fill: color, outline: 'none' },
@@ -148,21 +159,51 @@ export function MapView({ all, filters, onSelectCountry }: Props) {
                 )}
               </ul>
             )}
+            {tt.count === 1 && (
+              <p className="mt-1 text-[11px] text-amber-800">
+                Un solo asociado — sin respaldo si no puede atender.
+              </p>
+            )}
           </div>
         )}
       </div>
 
       <ul className="mt-3 flex flex-wrap items-center gap-3 text-xs text-text-muted">
-        {LEGEND.map((l) => (
-          <li key={l.label} className="flex items-center gap-1.5">
-            <span
-              aria-hidden
-              className="inline-block h-3 w-4 rounded-sm border border-black/10"
-              style={{ backgroundColor: l.color }}
-            />
-            <span>{l.label}</span>
-          </li>
-        ))}
+        <li className="flex items-center gap-1.5">
+          <span
+            aria-hidden
+            className="inline-block h-3 w-4 rounded-sm border border-black/10"
+            style={{ backgroundColor: COLOR_RED }}
+          />
+          <span>Rojo · sin asociados</span>
+        </li>
+        <li className="flex items-center gap-1.5">
+          <span
+            aria-hidden
+            className="inline-block h-3 w-4 rounded-sm border border-black/10"
+            style={{ backgroundColor: COLOR_YELLOW }}
+          />
+          <span>Amarillo · con asociados</span>
+        </li>
+        <li className="flex items-center gap-1.5" title="Un solo asociado — sin respaldo.">
+          <span
+            aria-hidden
+            className="inline-block h-3 w-4 rounded-sm"
+            style={{
+              backgroundColor: COLOR_YELLOW,
+              border: `1.5px solid ${COLOR_SPOF_STROKE}`,
+            }}
+          />
+          <span>Borde oscuro · con un solo asociado</span>
+        </li>
+        <li className="flex items-center gap-1.5">
+          <span
+            aria-hidden
+            className="inline-block h-3 w-4 rounded-sm border border-black/10"
+            style={{ backgroundColor: COLOR_NEUTRAL }}
+          />
+          <span>Gris · fuera del alcance</span>
+        </li>
       </ul>
     </section>
   );

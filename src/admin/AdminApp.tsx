@@ -161,6 +161,7 @@ export function AdminApp() {
           <MapView
             all={associates}
             filters={filters}
+            focus={focusCountries}
             onSelectCountry={(pais) => setPatch({ pais: filters.pais === pais ? '' : pais })}
           />
           <GapPanel

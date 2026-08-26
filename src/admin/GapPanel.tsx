@@ -74,6 +74,22 @@ export function GapPanel({ all, filters, focus, onSelectCountry }: Props) {
           seleccionado. <strong>Un solo asociado</strong>: hay cobertura pero no hay
           respaldo — si ese asociado no puede tomar el trabajo, no hay reemplazo.
         </p>
+        <ul className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-text-muted">
+          <li className="flex items-center gap-1">
+            <span
+              aria-hidden
+              className="inline-block h-2.5 w-3 rounded-sm border border-red-300 bg-red-50"
+            />
+            <span>Rojo · sin asociados</span>
+          </li>
+          <li className="flex items-center gap-1">
+            <span
+              aria-hidden
+              className="inline-block h-2.5 w-3 rounded-sm border border-amber-300 bg-amber-50"
+            />
+            <span>Amarillo · con asociados (marca “1” cuando hay uno solo)</span>
+          </li>
+        </ul>
         <p
           className={`mt-1 rounded px-2 py-1 text-xs ${
             filtered
@@ -237,10 +253,22 @@ function ChipList({
             <button
               type="button"
               onClick={() => onSelect(c)}
-              title={`Filtrar por ${countryName(c)}`}
-              className={`rounded border px-1.5 py-0.5 text-[11px] ${chipCls}`}
+              title={
+                tone === 'warn'
+                  ? `Filtrar por ${countryName(c)} — un solo asociado, sin respaldo.`
+                  : `Filtrar por ${countryName(c)}`
+              }
+              className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px] ${chipCls}`}
             >
-              {countryName(c)}
+              <span>{countryName(c)}</span>
+              {tone === 'warn' && (
+                <span
+                  aria-label="Un solo asociado"
+                  className="inline-flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-amber-800 px-1 text-[9px] font-semibold leading-none text-white"
+                >
+                  1
+                </span>
+              )}
             </button>
           </li>
         ))}
