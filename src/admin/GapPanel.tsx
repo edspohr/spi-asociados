@@ -12,6 +12,7 @@ import {
 } from '../data/countries';
 import { InfoTooltip } from '../components/InfoTooltip';
 import { coverageBuckets } from './coverage-scale';
+import { PopulationKpis } from './PopulationKpis';
 
 type Props = {
   all: AssociateDoc[];
@@ -106,6 +107,7 @@ export function GapPanel({ all, filters, onSelectCountry }: Props) {
             </>
           )}
         </p>
+        <PopulationKpis all={all} filters={filters} />
       </header>
 
       <ul className="mt-3 flex flex-col gap-1.5">
