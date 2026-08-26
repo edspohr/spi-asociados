@@ -164,12 +164,18 @@ export function associatesByCountry(
   return out;
 }
 
-/** Distinct services present across the current data. Used to populate the
- *  service dropdown; only shows services SPI actually has coverage for. */
-export function distinctServices(all: AssociateDoc[]): string[] {
+/** Distinct services present across the current data. Optionally narrowed by
+ *  categoria/subcategoria so the servicio dropdown only offers services that
+ *  actually exist inside the currently-picked category. */
+export function distinctServices(
+  all: AssociateDoc[],
+  scope: { categoria?: string; subcategoria?: string } = {},
+): string[] {
   const s = new Set<string>();
   for (const doc of all) {
     for (const row of doc.rows) {
+      if (scope.categoria && row.categoria !== scope.categoria) continue;
+      if (scope.subcategoria && row.subcategoria !== scope.subcategoria) continue;
       if (row.servicio) s.add(row.servicio);
     }
   }
@@ -182,6 +188,23 @@ export function distinctCategorias(all: AssociateDoc[]): string[] {
   for (const doc of all) {
     for (const row of doc.rows) {
       if (row.categoria) s.add(row.categoria);
+    }
+  }
+  return Array.from(s).sort((a, b) => a.localeCompare(b, 'es'));
+}
+
+/** Distinct subcategoria labels present under a given categoria (empty rows
+ *  outside that categoria are ignored). If `categoria` is empty, returns
+ *  every non-empty subcategoria in the data. */
+export function distinctSubcategorias(
+  all: AssociateDoc[],
+  categoria: string = '',
+): string[] {
+  const s = new Set<string>();
+  for (const doc of all) {
+    for (const row of doc.rows) {
+      if (categoria && row.categoria !== categoria) continue;
+      if (row.subcategoria) s.add(row.subcategoria);
     }
   }
   return Array.from(s).sort((a, b) => a.localeCompare(b, 'es'));

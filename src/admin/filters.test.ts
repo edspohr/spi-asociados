@@ -7,6 +7,7 @@ import {
   distinctCategorias,
   distinctCountries,
   distinctServices,
+  distinctSubcategorias,
   filteredRows,
   hasActiveFilters,
   rowMatches,
@@ -207,5 +208,38 @@ describe('distinct helpers', () => {
 
   it('distinctCountries returns sorted unique ISO codes', () => {
     expect(distinctCountries(dataset)).toEqual(['AR', 'CL', 'CO', 'MX']);
+  });
+
+  it('distinctSubcategorias returns all when no categoria is given', () => {
+    expect(distinctSubcategorias(dataset)).toEqual(['Uso Humano']);
+  });
+
+  it('distinctSubcategorias narrows by categoria', () => {
+    expect(distinctSubcategorias(dataset, 'Asuntos Regulatorios')).toEqual(['Uso Humano']);
+    expect(distinctSubcategorias(dataset, 'Propiedad Intelectual')).toEqual([]);
+  });
+
+  it('distinctServices narrows by categoria', () => {
+    expect(distinctServices(dataset, { categoria: 'Propiedad Intelectual' })).toEqual([
+      'Patentes',
+    ]);
+    expect(
+      distinctServices(dataset, { categoria: 'Asuntos Regulatorios' }).sort(),
+    ).toEqual(['Consultoría regulatoria', 'Hosting/tenencia de registro']);
+  });
+
+  it('distinctServices narrows by categoria + subcategoria together', () => {
+    expect(
+      distinctServices(dataset, {
+        categoria: 'Asuntos Regulatorios',
+        subcategoria: 'Uso Humano',
+      }).sort(),
+    ).toEqual(['Consultoría regulatoria', 'Hosting/tenencia de registro']);
+    expect(
+      distinctServices(dataset, {
+        categoria: 'Asuntos Regulatorios',
+        subcategoria: 'Veterinarios',
+      }),
+    ).toEqual([]);
   });
 });

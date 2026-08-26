@@ -14,6 +14,7 @@ import {
   distinctCategorias,
   distinctCountries,
   distinctServices,
+  distinctSubcategorias,
   filteredRows,
   hasActiveFilters,
 } from './filters';
@@ -51,8 +52,22 @@ export function AdminApp() {
     window.history.replaceState(null, '', url);
   }, [filters]);
 
+  // Downstream selects narrow with the ones above them, so changing an upstream
+  // filter has to reset anything the user might have picked further down —
+  // otherwise the UI can end up in a state like "Categoría: X, Servicio: Y"
+  // where Y doesn't exist in X.
   const setPatch = useCallback((patch: Partial<Filters>) => {
-    setFilters((prev) => ({ ...prev, ...patch }));
+    setFilters((prev) => {
+      const next: Filters = { ...prev, ...patch };
+      if (patch.categoria !== undefined && patch.categoria !== prev.categoria) {
+        next.subcategoria = '';
+        next.servicio = '';
+      }
+      if (patch.subcategoria !== undefined && patch.subcategoria !== prev.subcategoria) {
+        next.servicio = '';
+      }
+      return next;
+    });
   }, []);
 
   if (state.status === 'error' && state.unauthorized) {
@@ -78,7 +93,18 @@ export function AdminApp() {
   );
 
   const categorias = useMemo(() => distinctCategorias(associates), [associates]);
-  const servicios = useMemo(() => distinctServices(associates), [associates]);
+  const subcategorias = useMemo(
+    () => distinctSubcategorias(associates, filters.categoria),
+    [associates, filters.categoria],
+  );
+  const servicios = useMemo(
+    () =>
+      distinctServices(associates, {
+        categoria: filters.categoria,
+        subcategoria: filters.subcategoria,
+      }),
+    [associates, filters.categoria, filters.subcategoria],
+  );
   const countriesInData = useMemo(() => distinctCountries(associates), [associates]);
   const focusCountries: CountryCode[] = countriesInData.length > 0 ? countriesInData : [];
 
@@ -134,6 +160,7 @@ export function AdminApp() {
           onPatch={setPatch}
           onReset={() => setFilters(EMPTY_FILTERS)}
           categorias={categorias}
+          subcategorias={subcategorias}
           servicios={servicios}
           countriesInData={countriesInData}
         />
@@ -167,6 +194,7 @@ function FiltersBar({
   onPatch,
   onReset,
   categorias,
+  subcategorias,
   servicios,
   countriesInData,
 }: {
@@ -174,6 +202,7 @@ function FiltersBar({
   onPatch: (patch: Partial<Filters>) => void;
   onReset: () => void;
   categorias: string[];
+  subcategorias: string[];
   servicios: string[];
   countriesInData: CountryCode[];
 }) {
@@ -191,111 +220,187 @@ function FiltersBar({
     return { inData, rest };
   }, [countriesInData]);
 
+  const subDisabled = subcategorias.length === 0;
+
+  const chips: Array<{ label: string; onRemove: () => void }> = [];
+  if (filters.q.trim()) {
+    chips.push({ label: `Texto: “${filters.q.trim()}”`, onRemove: () => onPatch({ q: '' }) });
+  }
+  if (filters.categoria) {
+    chips.push({
+      label: `Categoría: ${filters.categoria}`,
+      onRemove: () => onPatch({ categoria: '' }),
+    });
+  }
+  if (filters.subcategoria) {
+    chips.push({
+      label: `Subcategoría: ${filters.subcategoria}`,
+      onRemove: () => onPatch({ subcategoria: '' }),
+    });
+  }
+  if (filters.servicio) {
+    chips.push({
+      label: `Servicio: ${filters.servicio}`,
+      onRemove: () => onPatch({ servicio: '' }),
+    });
+  }
+  if (filters.pais) {
+    chips.push({
+      label: `País: ${countryName(filters.pais)}`,
+      onRemove: () => onPatch({ pais: '' }),
+    });
+  }
+  if (filters.modalidad !== 'todos') {
+    chips.push({
+      label: `Modalidad: ${filters.modalidad === 'directo' ? 'Directo' : 'Tercerizado'}`,
+      onRemove: () => onPatch({ modalidad: 'todos' }),
+    });
+  }
+
   return (
     <section
       aria-label="Filtros"
-      className="grid grid-cols-1 gap-2 rounded-lg border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-6"
+      className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4"
     >
-      <label className="flex flex-col gap-1 text-xs text-text-muted lg:col-span-2">
-        Buscar (razón social, correo, servicio…)
-        <input
-          type="search"
-          value={filters.q}
-          onChange={(e) => onPatch({ q: e.target.value })}
-          placeholder="Ej: dispositivos, maria@…, hosting"
-          className="rounded border border-border bg-white px-2 py-1 text-sm text-text outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-        />
-      </label>
+      <p className="text-xs text-text-muted">
+        Refine de arriba hacia abajo: <strong>categoría → subcategoría → servicio → país → modalidad</strong>.
+        Las opciones de cada filtro se limitan a lo que sobrevive al filtro anterior.
+      </p>
 
-      <label className="flex flex-col gap-1 text-xs text-text-muted">
-        Categoría
-        <select
-          value={filters.categoria}
-          onChange={(e) => onPatch({ categoria: e.target.value })}
-          className="rounded border border-border bg-white px-2 py-1 text-sm text-text outline-none focus:border-primary"
-        >
-          <option value="">Todas</option>
-          {categorias.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-      </label>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-6">
+        <label className="flex flex-col gap-1 text-xs text-text-muted lg:col-span-2">
+          Buscar (razón social, correo, servicio…)
+          <input
+            type="search"
+            value={filters.q}
+            onChange={(e) => onPatch({ q: e.target.value })}
+            placeholder="Ej: dispositivos, maria@…, hosting"
+            className="rounded border border-border bg-white px-2 py-1 text-sm text-text outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+          />
+        </label>
 
-      <label className="flex flex-col gap-1 text-xs text-text-muted">
-        Servicio
-        <select
-          value={filters.servicio}
-          onChange={(e) => onPatch({ servicio: e.target.value })}
-          className="rounded border border-border bg-white px-2 py-1 text-sm text-text outline-none focus:border-primary"
-        >
-          <option value="">Todos</option>
-          {servicios.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-      </label>
+        <label className="flex flex-col gap-1 text-xs text-text-muted">
+          Categoría
+          <select
+            value={filters.categoria}
+            onChange={(e) => onPatch({ categoria: e.target.value })}
+            className="rounded border border-border bg-white px-2 py-1 text-sm text-text outline-none focus:border-primary"
+          >
+            <option value="">Todas</option>
+            {categorias.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </label>
 
-      <label className="flex flex-col gap-1 text-xs text-text-muted">
-        País
-        <select
-          value={filters.pais}
-          onChange={(e) => onPatch({ pais: e.target.value })}
-          className="rounded border border-border bg-white px-2 py-1 text-sm text-text outline-none focus:border-primary"
-        >
-          <option value="">Todos</option>
-          {countryOptions.inData.length > 0 && (
-            <optgroup label="En los datos">
-              {countryOptions.inData.map((c) => (
+        <label className="flex flex-col gap-1 text-xs text-text-muted">
+          Subcategoría
+          <select
+            value={filters.subcategoria}
+            onChange={(e) => onPatch({ subcategoria: e.target.value })}
+            disabled={subDisabled}
+            title={
+              subDisabled
+                ? 'Seleccione una categoría con subcategorías (p. ej. Asuntos Regulatorios).'
+                : undefined
+            }
+            className="rounded border border-border bg-white px-2 py-1 text-sm text-text outline-none focus:border-primary disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-subtle"
+          >
+            <option value="">Todas</option>
+            {subcategorias.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-1 text-xs text-text-muted">
+          Servicio
+          <select
+            value={filters.servicio}
+            onChange={(e) => onPatch({ servicio: e.target.value })}
+            className="rounded border border-border bg-white px-2 py-1 text-sm text-text outline-none focus:border-primary"
+          >
+            <option value="">Todos</option>
+            {servicios.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-1 text-xs text-text-muted">
+          País
+          <select
+            value={filters.pais}
+            onChange={(e) => onPatch({ pais: e.target.value })}
+            className="rounded border border-border bg-white px-2 py-1 text-sm text-text outline-none focus:border-primary"
+          >
+            <option value="">Todos</option>
+            {countryOptions.inData.length > 0 && (
+              <optgroup label="En los datos">
+                {countryOptions.inData.map((c) => (
+                  <option key={c.code2} value={c.code2}>
+                    {c.nameEs}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            <optgroup label="Resto del mundo">
+              {countryOptions.rest.map((c) => (
                 <option key={c.code2} value={c.code2}>
                   {c.nameEs}
                 </option>
               ))}
             </optgroup>
-          )}
-          <optgroup label="Resto del mundo">
-            {countryOptions.rest.map((c) => (
-              <option key={c.code2} value={c.code2}>
-                {c.nameEs}
-              </option>
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-1 text-xs text-text-muted">
+          Modalidad
+          <select
+            value={filters.modalidad}
+            onChange={(e) => onPatch({ modalidad: e.target.value as ModalidadFilter })}
+            className="rounded border border-border bg-white px-2 py-1 text-sm text-text outline-none focus:border-primary"
+          >
+            <option value="todos">Todas</option>
+            <option value="directo">Directo</option>
+            <option value="tercerizado">Tercerizado</option>
+          </select>
+        </label>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {chips.length === 0 ? (
+          <p className="text-xs text-text-subtle">
+            Sin filtros — mostrando el universo completo.
+          </p>
+        ) : (
+          <>
+            <span className="text-xs text-text-subtle">Filtros activos:</span>
+            {chips.map((chip) => (
+              <button
+                key={chip.label}
+                type="button"
+                onClick={chip.onRemove}
+                className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-[11px] text-primary hover:border-primary hover:bg-primary/10"
+                title="Quitar filtro"
+              >
+                {chip.label}
+                <span aria-hidden>×</span>
+              </button>
             ))}
-          </optgroup>
-        </select>
-      </label>
-
-      <label className="flex flex-col gap-1 text-xs text-text-muted">
-        Modalidad
-        <select
-          value={filters.modalidad}
-          onChange={(e) => onPatch({ modalidad: e.target.value as ModalidadFilter })}
-          className="rounded border border-border bg-white px-2 py-1 text-sm text-text outline-none focus:border-primary"
-        >
-          <option value="todos">Todas</option>
-          <option value="directo">Directo</option>
-          <option value="tercerizado">Tercerizado</option>
-        </select>
-      </label>
-
-      <div className="flex items-end justify-between gap-2 lg:col-span-6">
-        <p className="text-xs text-text-subtle">
-          {hasActiveFilters(filters) ? (
-            <>
-              Filtro activo
-              {filters.pais && <> · País: <strong>{countryName(filters.pais)}</strong></>}
-              {filters.servicio && <> · Servicio: <strong>{filters.servicio}</strong></>}
-            </>
-          ) : (
-            'Sin filtros — mostrando el universo completo.'
-          )}
-        </p>
+          </>
+        )}
         <button
           type="button"
           onClick={onReset}
           disabled={!hasActiveFilters(filters)}
-          className="text-xs text-primary underline hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+          className="ml-auto text-xs text-primary underline hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Limpiar filtros
         </button>
