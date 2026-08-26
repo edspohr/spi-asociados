@@ -10,32 +10,26 @@ import type { AssociateDoc } from './types';
 import type { Filters } from './filters';
 import { associatesByCountry, coverageByCountry } from './filters';
 import { code2FromM49, countryName, type CountryCode } from '../data/countries';
+import { SPOF_STROKE, bucketFor, coverageBuckets } from './coverage-scale';
 
 type Props = {
   all: AssociateDoc[];
   filters: Filters;
-  /** Countries considered part of the operating universe (usually the countries
-   *  that appear anywhere in the data). Countries outside this set stay neutral
-   *  regardless of coverage. When empty, all countries are considered. */
+  /** Countries considered part of the operating universe. Countries outside
+   *  this set render neutral and non-interactive. When empty, all mapped
+   *  countries are considered. */
   focus?: CountryCode[];
   onSelectCountry: (code: CountryCode) => void;
 };
 
-// Coverage colors read as a gap map: red = no associates in the universe;
-// yellow = at least one; neutral grey = country is outside the current focus.
-const COLOR_NEUTRAL = '#e8ecef';
-const COLOR_RED = '#ef4444'; // red-500
-const COLOR_YELLOW = '#fbbf24'; // amber-400
-// SPOF (single-point-of-failure) countries stay yellow but get a distinct dark
-// outline so the "one associate = no backup" signal survives without adding a
-// third colour — also serves as the non-colour channel for color-blind users.
-const COLOR_SPOF_STROKE = '#7c2d12'; // amber-900
+const COLOR_OUT_OF_FOCUS = '#f1f5f9'; // slate-100 — faintly grey, no border
 
 type Tooltip = {
   x: number;
   y: number;
   countryLabel: string;
   count: number;
+  bucketLabel: string;
   associates: AssociateDoc[];
 };
 
@@ -46,6 +40,12 @@ export function MapView({ all, filters, focus, onSelectCountry }: Props) {
     () => (focus && focus.length > 0 ? new Set(focus) : null),
     [focus],
   );
+  const maxCount = useMemo(() => {
+    let m = 0;
+    for (const n of coverage.values()) if (n > m) m = n;
+    return m;
+  }, [coverage]);
+  const buckets = useMemo(() => coverageBuckets(maxCount), [maxCount]);
   const [tt, setTt] = useState<Tooltip | null>(null);
 
   return (
@@ -58,7 +58,7 @@ export function MapView({ all, filters, focus, onSelectCountry }: Props) {
           Cobertura por país
         </h3>
         <p className="text-xs text-text-subtle">
-          Escala: cantidad de asociados por país{filters.servicio ? ` para “${filters.servicio}”` : ''}.
+          Escala: cantidad de asociados por país (más oscuro, más asociados).
           Refleja los filtros aplicados abajo.
         </p>
       </header>
@@ -76,13 +76,10 @@ export function MapView({ all, filters, focus, onSelectCountry }: Props) {
                   const code2 = code2FromM49(geo.id as string);
                   const inFocus = code2 && (!focusSet || focusSet.has(code2));
                   const count = (code2 && coverage.get(code2)) || 0;
-                  const color = !inFocus
-                    ? COLOR_NEUTRAL
-                    : count === 0
-                      ? COLOR_RED
-                      : COLOR_YELLOW;
+                  const bucket = inFocus ? bucketFor(count, buckets) : null;
+                  const color = bucket ? bucket.color : COLOR_OUT_OF_FOCUS;
                   const isSpof = Boolean(inFocus) && count === 1;
-                  const baseStroke = isSpof ? COLOR_SPOF_STROKE : '#ffffff';
+                  const baseStroke = isSpof ? SPOF_STROKE : '#ffffff';
                   const baseStrokeWidth = isSpof ? 1.1 : 0.4;
                   return (
                     <Geography
@@ -95,6 +92,7 @@ export function MapView({ all, filters, focus, onSelectCountry }: Props) {
                           y: e.clientY,
                           countryLabel: countryName(code2),
                           count,
+                          bucketLabel: bucket?.labelEs ?? 'Fuera del alcance',
                           associates: bag.get(code2) ?? [],
                         });
                       }}
@@ -115,7 +113,7 @@ export function MapView({ all, filters, focus, onSelectCountry }: Props) {
                         },
                         hover: {
                           fill: color,
-                          stroke: isSpof ? COLOR_SPOF_STROKE : '#043356',
+                          stroke: isSpof ? SPOF_STROKE : '#043356',
                           strokeWidth: isSpof ? 1.4 : 0.8,
                           outline: 'none',
                         },
@@ -145,7 +143,7 @@ export function MapView({ all, filters, focus, onSelectCountry }: Props) {
             <p className="text-text-muted">
               {tt.count === 0
                 ? 'Sin asociados'
-                : `${tt.count} asociado${tt.count === 1 ? '' : 's'}`}
+                : `${tt.count} asociado${tt.count === 1 ? '' : 's'} · ${tt.bucketLabel}`}
             </p>
             {tt.associates.length > 0 && (
               <ul className="mt-1 space-y-0.5 text-text">
@@ -169,41 +167,22 @@ export function MapView({ all, filters, focus, onSelectCountry }: Props) {
       </div>
 
       <ul className="mt-3 flex flex-wrap items-center gap-3 text-xs text-text-muted">
-        <li className="flex items-center gap-1.5">
-          <span
-            aria-hidden
-            className="inline-block h-3 w-4 rounded-sm border border-black/10"
-            style={{ backgroundColor: COLOR_RED }}
-          />
-          <span>Rojo · sin asociados</span>
-        </li>
-        <li className="flex items-center gap-1.5">
-          <span
-            aria-hidden
-            className="inline-block h-3 w-4 rounded-sm border border-black/10"
-            style={{ backgroundColor: COLOR_YELLOW }}
-          />
-          <span>Amarillo · con asociados</span>
-        </li>
-        <li className="flex items-center gap-1.5" title="Un solo asociado — sin respaldo.">
-          <span
-            aria-hidden
-            className="inline-block h-3 w-4 rounded-sm"
-            style={{
-              backgroundColor: COLOR_YELLOW,
-              border: `1.5px solid ${COLOR_SPOF_STROKE}`,
-            }}
-          />
-          <span>Borde oscuro · con un solo asociado</span>
-        </li>
-        <li className="flex items-center gap-1.5">
-          <span
-            aria-hidden
-            className="inline-block h-3 w-4 rounded-sm border border-black/10"
-            style={{ backgroundColor: COLOR_NEUTRAL }}
-          />
-          <span>Gris · fuera del alcance</span>
-        </li>
+        {buckets.map((b) => (
+          <li key={b.id} className="flex items-center gap-1.5">
+            <span
+              aria-hidden
+              className="inline-block h-3 w-4 rounded-sm"
+              style={{
+                backgroundColor: b.color,
+                border:
+                  b.id === 'un_solo'
+                    ? `1.5px solid ${SPOF_STROKE}`
+                    : '1px solid rgba(0,0,0,0.08)',
+              }}
+            />
+            <span>{b.labelEs}</span>
+          </li>
+        ))}
       </ul>
     </section>
   );

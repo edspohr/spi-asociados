@@ -11,6 +11,7 @@ import {
   type Region,
 } from '../data/countries';
 import { InfoTooltip } from '../components/InfoTooltip';
+import { coverageBuckets } from './coverage-scale';
 
 type Props = {
   all: AssociateDoc[];
@@ -37,6 +38,11 @@ export function GapPanel({ all, filters, focus, onSelectCountry }: Props) {
   }, [focus]);
 
   const byRegion = useMemo(() => bucketByRegion(universe, coverage), [universe, coverage]);
+  // Reads the two "gap" buckets from the shared scale so the swatch colours
+  // stay in sync with the map legend even before the full restructure in P16/5.
+  const sharedBuckets = useMemo(() => coverageBuckets(2), []);
+  const zeroSwatch = sharedBuckets[0]?.color ?? '#e2e8f0';
+  const oneSwatch = sharedBuckets[1]?.color ?? '#c7e2f6';
   const totals = useMemo(() => {
     let zero = 0;
     let one = 0;
@@ -78,16 +84,18 @@ export function GapPanel({ all, filters, focus, onSelectCountry }: Props) {
           <li className="flex items-center gap-1">
             <span
               aria-hidden
-              className="inline-block h-2.5 w-3 rounded-sm border border-red-300 bg-red-50"
+              className="inline-block h-2.5 w-3 rounded-sm border border-black/10"
+              style={{ backgroundColor: zeroSwatch }}
             />
-            <span>Rojo · sin asociados</span>
+            <span>Gris · sin asociados</span>
           </li>
           <li className="flex items-center gap-1">
             <span
               aria-hidden
-              className="inline-block h-2.5 w-3 rounded-sm border border-amber-300 bg-amber-50"
+              className="inline-block h-2.5 w-3 rounded-sm border border-black/10"
+              style={{ backgroundColor: oneSwatch }}
             />
-            <span>Amarillo · con asociados (marca “1” cuando hay uno solo)</span>
+            <span>Azul claro · con asociados (marca “1” cuando hay uno solo)</span>
           </li>
         </ul>
         <p
