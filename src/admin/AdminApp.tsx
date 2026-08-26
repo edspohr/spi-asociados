@@ -155,16 +155,6 @@ export function AdminApp() {
           </div>
         )}
 
-        <FiltersBar
-          filters={filters}
-          onPatch={setPatch}
-          onReset={() => setFilters(EMPTY_FILTERS)}
-          categorias={categorias}
-          subcategorias={subcategorias}
-          servicios={servicios}
-          countriesInData={countriesInData}
-        />
-
         <KpiCards all={associates} filters={filters} />
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]">
@@ -181,7 +171,18 @@ export function AdminApp() {
           />
         </div>
 
-        <AssociatesTable associates={filteredAssociates} onSelect={setSelected} />
+        <div className="overflow-hidden rounded-lg border border-border bg-surface">
+          <FiltersBar
+            filters={filters}
+            onPatch={setPatch}
+            onReset={() => setFilters(EMPTY_FILTERS)}
+            categorias={categorias}
+            subcategorias={subcategorias}
+            servicios={servicios}
+            countriesInData={countriesInData}
+          />
+          <AssociatesTable associates={filteredAssociates} onSelect={setSelected} />
+        </div>
       </main>
 
       <AssociateDrawer associate={selected} onClose={() => setSelected(null)} />
@@ -260,11 +261,12 @@ function FiltersBar({
   return (
     <section
       aria-label="Filtros"
-      className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4"
+      className="flex flex-col gap-3 border-b border-border bg-surface-muted p-4"
     >
       <p className="text-xs text-text-muted">
         Refine de arriba hacia abajo: <strong>categoría → subcategoría → servicio → país → modalidad</strong>.
-        Las opciones de cada filtro se limitan a lo que sobrevive al filtro anterior.
+        Las opciones de cada filtro se limitan a lo que sobrevive al filtro anterior.{' '}
+        <span className="text-text-subtle">Los resultados de la tabla se actualizan a medida que refine.</span>
       </p>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-6">

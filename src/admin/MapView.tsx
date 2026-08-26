@@ -56,6 +56,7 @@ export function MapView({ all, filters, onSelectCountry }: Props) {
         </h3>
         <p className="text-xs text-text-subtle">
           Escala: cantidad de asociados por país{filters.servicio ? ` para “${filters.servicio}”` : ''}.
+          Refleja los filtros aplicados abajo.
         </p>
       </header>
 

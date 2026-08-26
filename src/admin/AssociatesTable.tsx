@@ -70,10 +70,7 @@ export function AssociatesTable({ associates, onSelect }: Props) {
   }
 
   return (
-    <section
-      aria-labelledby="table-title"
-      className="rounded-lg border border-border bg-surface"
-    >
+    <section aria-labelledby="table-title" className="bg-surface">
       <header className="flex items-baseline justify-between gap-2 px-4 py-3">
         <h3 id="table-title" className="text-sm font-semibold text-primary">
           Asociados que coinciden
