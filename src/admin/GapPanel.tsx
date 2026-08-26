@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { AssociateDoc } from './types';
 import type { Filters } from './filters';
-import { coverageByCountry } from './filters';
+import { coverageByCountry, hasActiveFilters } from './filters';
 import {
   COUNTRIES,
   REGIONS,
@@ -10,6 +10,7 @@ import {
   type CountryCode,
   type Region,
 } from '../data/countries';
+import { InfoTooltip } from '../components/InfoTooltip';
 
 type Props = {
   all: AssociateDoc[];
@@ -51,6 +52,7 @@ export function GapPanel({ all, filters, focus, onSelectCountry }: Props) {
     : filters.categoria
       ? `Categoría: ${filters.categoria}`
       : 'Sin filtro de servicio';
+  const filtered = hasActiveFilters(filters);
 
   return (
     <section
@@ -67,7 +69,25 @@ export function GapPanel({ all, filters, focus, onSelectCountry }: Props) {
             <TotalBadge tone="warn" count={totals.one} label="con 1" />
           </div>
         </div>
-        <p className="mt-0.5 text-xs text-text-subtle">{scopeHint}</p>
+        <p className="mt-1 text-xs text-text-muted">
+          <strong>Sin cobertura</strong>: países donde ningún asociado ofrece el alcance
+          seleccionado. <strong>Un solo asociado</strong>: hay cobertura pero no hay
+          respaldo — si ese asociado no puede tomar el trabajo, no hay reemplazo.
+        </p>
+        <p
+          className={`mt-1 rounded px-2 py-1 text-xs ${
+            filtered
+              ? 'bg-amber-50 text-amber-900'
+              : 'text-text-subtle'
+          }`}
+        >
+          <strong>Alcance:</strong> {scopeHint}
+          {filtered && (
+            <>
+              {' '}— los números reflejan el filtro activo, no el universo completo.
+            </>
+          )}
+        </p>
       </header>
 
       <ul className="mt-3 flex flex-col gap-1.5">
@@ -164,6 +184,7 @@ function RegionRow({
           {zero.length > 0 && (
             <ChipList
               label="Sin cobertura"
+              tooltip="Países en los que ningún asociado atiende el alcance filtrado."
               codes={zero}
               tone="danger"
               onSelect={onSelectCountry}
@@ -172,6 +193,7 @@ function RegionRow({
           {one.length > 0 && (
             <ChipList
               label="Un solo asociado"
+              tooltip="Un único asociado cubre estos países — sin respaldo si no puede atender."
               codes={one}
               tone="warn"
               onSelect={onSelectCountry}
@@ -185,11 +207,13 @@ function RegionRow({
 
 function ChipList({
   label,
+  tooltip,
   codes,
   tone,
   onSelect,
 }: {
   label: string;
+  tooltip: string;
   codes: CountryCode[];
   tone: 'danger' | 'warn';
   onSelect: (code: CountryCode) => void;
@@ -200,13 +224,20 @@ function ChipList({
       : 'border-amber-200 bg-amber-50 text-amber-800 hover:border-amber-500';
   return (
     <div className="mt-1 first:mt-0">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{label}</p>
+      <p className="flex items-center text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+        {label}
+        <InfoTooltip text={tooltip} />
+      </p>
+      <p className="mt-0.5 text-[10px] text-text-subtle">
+        Clic en un país para filtrar el panel a ese país.
+      </p>
       <ul className="mt-1 flex flex-wrap gap-1">
         {codes.map((c) => (
           <li key={c}>
             <button
               type="button"
               onClick={() => onSelect(c)}
+              title={`Filtrar por ${countryName(c)}`}
               className={`rounded border px-1.5 py-0.5 text-[11px] ${chipCls}`}
             >
               {countryName(c)}
@@ -228,8 +259,12 @@ function TotalBadge({ count, tone, label }: { count: number; tone: 'danger' | 'w
   if (count === 0) return null;
   const cls =
     tone === 'danger' ? 'bg-red-100 text-danger' : 'bg-amber-100 text-amber-800';
+  const tooltip =
+    tone === 'danger'
+      ? `${count} país(es) sin ningún asociado bajo el alcance actual.`
+      : `${count} país(es) con un único asociado — sin respaldo si no puede atender.`;
   return (
-    <span className={`rounded px-1.5 py-0.5 font-semibold ${cls}`} title={`${count} países ${label} cobertura`}>
+    <span className={`rounded px-1.5 py-0.5 font-semibold ${cls}`} title={tooltip}>
       {count} {label}
     </span>
   );
