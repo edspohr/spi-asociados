@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   bucketFor,
   coverageBuckets,
-  populationCovered,
 } from './coverage-scale';
 
 describe('coverageBuckets', () => {
@@ -81,34 +80,5 @@ describe('bucketFor', () => {
   it('routes counts above the observed max to the top open-ended tier', () => {
     const b = coverageBuckets(5);
     expect(bucketFor(99, b).max).toBeNull();
-  });
-});
-
-describe('populationCovered', () => {
-  it('splits population totals across the three coverage classes', () => {
-    // Universe of three synthetic countries. Populations are read from real
-    // COUNTRIES definitions (CL=19.6, AR=45.5, UY=3.4) so we don't have to
-    // reinvent them here; the test only cares about the split ratio.
-    const coverage = new Map<string, number>([
-      ['CL', 0],
-      ['AR', 1],
-      ['UY', 3],
-    ]);
-    const out = populationCovered(coverage, ['CL', 'AR', 'UY']);
-    expect(out.sinCobertura).toBeCloseTo(19.6, 5);
-    expect(out.unSolo).toBeCloseTo(45.5, 5);
-    expect(out.conRespaldo).toBeCloseTo(3.4, 5);
-    expect(out.total).toBeCloseTo(19.6 + 45.5 + 3.4, 5);
-  });
-
-  it('treats missing coverage entries as zero', () => {
-    const out = populationCovered(new Map(), ['CL']);
-    expect(out.sinCobertura).toBeCloseTo(19.6, 5);
-    expect(out.total).toBeCloseTo(19.6, 5);
-  });
-
-  it('ignores codes outside the known country list', () => {
-    const out = populationCovered(new Map([['ZZ', 5]]), ['ZZ']);
-    expect(out.total).toBe(0);
   });
 });

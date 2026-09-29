@@ -14,7 +14,6 @@ import {
   coverageBuckets,
   type CoverageBucket,
 } from './coverage-scale';
-import { PopulationKpis } from './PopulationKpis';
 import { groupUniverseByBucket, toGapCsv, type BucketGroup } from './gap-grouping';
 import { downloadCsv } from './csv';
 
@@ -93,7 +92,6 @@ export function GapPanel({ all, filters, onSelectCountry }: Props) {
             </>
           )}
         </p>
-        <PopulationKpis all={all} filters={filters} />
       </header>
 
       <ul className="mt-3 flex flex-col gap-2">

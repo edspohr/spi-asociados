@@ -1,10 +1,8 @@
-import type { CountryCode, CountryDef } from '../data/countries';
-import { findCountry } from '../data/countries';
 
 /**
  * Single source of truth for the "how many associates cover this country"
- * scale. Consumed by MapView (choropleth fills), GapPanel (section headers +
- * chip badges) and KpiCards (population aggregates). All three must render
+ * scale. Consumed by MapView (choropleth fills) and GapPanel (section headers +
+ * chip badges). Both must render
  * from the same bucket array so the legends line up.
  */
 
@@ -120,44 +118,4 @@ export function bucketFor(count: number, buckets: CoverageBucket[]): CoverageBuc
   // Should be unreachable when buckets came from coverageBuckets(); fall back
   // to the last one so callers never have to null-check.
   return buckets[buckets.length - 1];
-}
-
-// ── Population-weighted aggregates ──────────────────────────────────────────
-
-export type PopulationCoverage = {
-  /** Combined population (in millions) of countries with zero associates. */
-  sinCobertura: number;
-  /** Combined population of countries with exactly one associate. */
-  unSolo: number;
-  /** Combined population of countries with two or more associates. */
-  conRespaldo: number;
-  /** Combined population of the universe under consideration. */
-  total: number;
-};
-
-/**
- * Sum populations across a universe, bucketing by how many associates cover
- * each country. Passed `coverage` should already reflect the current filter
- * scope (compute with `coverageByCountry`). Any country in `universe` that
- * has no entry in `coverage` counts as zero associates.
- */
-export function populationCovered(
-  coverage: Map<CountryCode, number>,
-  universe: CountryCode[],
-): PopulationCoverage {
-  let sinCobertura = 0;
-  let unSolo = 0;
-  let conRespaldo = 0;
-  let total = 0;
-  for (const code of universe) {
-    const def: CountryDef | undefined = findCountry(code);
-    if (!def) continue;
-    const pop = def.population;
-    total += pop;
-    const n = coverage.get(code) ?? 0;
-    if (n === 0) sinCobertura += pop;
-    else if (n === 1) unSolo += pop;
-    else conRespaldo += pop;
-  }
-  return { sinCobertura, unSolo, conRespaldo, total };
 }
