@@ -4,6 +4,8 @@ import type { CountryCode, CountryDef } from '../data/countries';
 import type { CellState, GroupMatrix } from '../types/form';
 import { makeCellKey } from '../types/form';
 import { MatrixCell, MatrixLegend } from './MatrixCell';
+import { useLang } from '../i18n/lang';
+import { countryLabel, label } from '../i18n/labels';
 
 type Props = {
   group: Group;
@@ -33,6 +35,7 @@ export function GroupSection({
   onColumnCycle,
   onRowCycle,
 }: Props) {
+  const { lang, t } = useLang();
   const [open, setOpen] = useState(false);
   const rows = group.services;
   const cellRefs = useRef<Array<Array<HTMLButtonElement | null>>>([]);
@@ -58,7 +61,7 @@ export function GroupSection({
   );
 
   const countMarked = Object.keys(matrix).length;
-  const name = displayLabel ?? title.name;
+  const name = displayLabel ?? label(title.name, lang);
 
   return (
     <section
@@ -82,7 +85,7 @@ export function GroupSection({
           <span className="flex flex-col">
             {title.eyebrow && (
               <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-accent-600">
-                {title.eyebrow}
+                {label(title.eyebrow, lang)}
               </span>
             )}
             <span
@@ -94,7 +97,7 @@ export function GroupSection({
           </span>
         </span>
         <span className="text-xs text-text-muted">
-          {countMarked === 0 ? 'Sin marcar' : `${countMarked} celda(s) marcada(s)`}
+          {countMarked === 0 ? t.unmarked : t.cellsMarked(countMarked)}
         </span>
       </button>
 
@@ -102,15 +105,11 @@ export function GroupSection({
         <div id={`group-${group.id}-body`} className="border-t border-border p-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <MatrixLegend />
-            <span className="text-xs text-text-subtle">
-              Consejo: clic en un país o servicio para marcar/desmarcar toda la columna o fila.
-            </span>
+            <span className="text-xs text-text-subtle">{t.matrixTip}</span>
           </div>
 
           {countries.length === 0 ? (
-            <p className="text-sm text-text-muted">
-              Seleccione al menos un país en el paso anterior para completar esta matriz.
-            </p>
+            <p className="text-sm text-text-muted">{t.matrixNeedsCountry}</p>
           ) : (
             <div className="relative overflow-x-auto">
               <table className="min-w-full border-separate border-spacing-0 text-sm">
@@ -120,7 +119,7 @@ export function GroupSection({
                       scope="col"
                       className="sticky left-0 top-0 z-20 min-w-56 bg-surface-muted px-3 py-2 text-left font-semibold text-text"
                     >
-                      Servicio
+                      {t.serviceHeader}
                     </th>
                     {countries.map((c) => (
                       <th
@@ -131,10 +130,10 @@ export function GroupSection({
                         <button
                           type="button"
                           onClick={() => onColumnCycle(c.code2)}
-                          title={`${c.nameEs} — marcar/desmarcar toda la columna`}
+                          title={t.toggleColumn(countryLabel(c.code2, lang))}
                           className="w-full px-2 py-2 hover:bg-accent-100 focus-visible:bg-accent-100 outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                         >
-                          {c.nameEs}
+                          {countryLabel(c.code2, lang)}
                         </button>
                       </th>
                     ))}
@@ -150,10 +149,10 @@ export function GroupSection({
                         <button
                           type="button"
                           onClick={() => onRowCycle(service)}
-                          title={`${service} — marcar/desmarcar toda la fila`}
+                          title={t.toggleRow(label(service, lang))}
                           className="w-full px-3 py-2 text-left hover:bg-accent-100 focus-visible:bg-accent-100 outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
                         >
-                          {service}
+                          {label(service, lang)}
                         </button>
                       </th>
                       {countries.map((country, cIdx) => {
@@ -174,7 +173,10 @@ export function GroupSection({
                                   else if (dir === 'left') focusCell(rIdx, cIdx - 1);
                                   else focusCell(rIdx, cIdx + 1);
                                 }}
-                                ariaLabel={`${service} en ${country.nameEs}`}
+                                ariaLabel={t.cellAria(
+                                  label(service, lang),
+                                  countryLabel(country.code2, lang),
+                                )}
                               />
                             </div>
                           </td>

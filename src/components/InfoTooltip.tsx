@@ -1,4 +1,5 @@
 import { useId, useState } from 'react';
+import { useLang } from '../i18n/lang';
 
 type Props = { text: string };
 
@@ -7,6 +8,7 @@ type Props = { text: string };
  * so the glossary can grow incrementally without leaving hollow icons in the UI.
  */
 export function InfoTooltip({ text }: Props) {
+  const { t } = useLang();
   const trimmed = text.trim();
   const [open, setOpen] = useState(false);
   const id = useId();
@@ -16,7 +18,7 @@ export function InfoTooltip({ text }: Props) {
     <span className="relative inline-block">
       <button
         type="button"
-        aria-label="Más información"
+        aria-label={t.moreInfo}
         aria-describedby={open ? id : undefined}
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}

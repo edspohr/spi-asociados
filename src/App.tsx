@@ -7,6 +7,9 @@ import { DraftIndicator } from './components/DraftIndicator';
 import { ReviewAndSubmit } from './components/ReviewAndSubmit';
 import { SuccessScreen } from './components/SuccessScreen';
 import { StepIndicator } from './components/StepIndicator';
+import { LanguageSwitcher } from './components/LanguageSwitcher';
+import { useLang } from './i18n/lang';
+import { label } from './i18n/labels';
 import { GROUPS, groupSelectedByCategory } from './data/form-config';
 import { COUNTRIES, type CountryCode, type CountryDef } from './data/countries';
 import { EMPTY_FORM, makeCellKey, type FormState, type GroupMatrix } from './types/form';
@@ -28,13 +31,8 @@ const DRAFT_KEY = 'spi-asociados-draft';
 
 type Stage = 1 | 2 | 3;
 
-const STEPS = [
-  { n: 1, label: 'Datos y alcance' },
-  { n: 2, label: 'Servicios' },
-  { n: 3, label: 'Revisar y enviar' },
-];
-
 export default function App() {
+  const { lang, t } = useLang();
   const [form, setForm, clearDraft] = useLocalStorageState<FormState>(DRAFT_KEY, EMPTY_FORM, {
     version: 4,
   });
@@ -44,7 +42,10 @@ export default function App() {
   const [successCount, setSuccessCount] = useState<number | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const errors = useMemo(() => validateCompany(form.company), [form.company]);
+  const errors = useMemo(
+    () => validateCompany(form.company, t.validation),
+    [form.company, t.validation],
+  );
   const headerHasErrors = hasErrors(errors);
   const displayErrors = submitted ? errors : {};
   const stage1Blockers = useMemo(() => findStage1Blockers(form), [form]);
@@ -65,6 +66,8 @@ export default function App() {
     const set = new Set(form.selectedCountries);
     return COUNTRIES.filter((c) => set.has(c.code2));
   }, [form.selectedCountries]);
+
+  const steps = t.steps.map((stepLabel, i) => ({ n: i + 1, label: stepLabel }));
 
   function toggleGroup(id: string, next: boolean) {
     setForm((prev) => ({
@@ -124,9 +127,7 @@ export default function App() {
 
   function handleReset() {
     if (
-      window.confirm(
-        '¿Está seguro que desea empezar de nuevo? Se perderán todos los datos ingresados.',
-      )
+      window.confirm(t.confirmReset)
     ) {
       clearDraft();
       setSubmitted(false);
@@ -197,28 +198,25 @@ export default function App() {
         <div className="mx-auto flex max-w-5xl items-center gap-4 px-6 py-4">
           <img src={SPI_LOGO} alt="SPI Americas" className="h-14 w-auto" />
           <div className="flex-1">
-            <h1 className="text-xl font-semibold text-primary">
-              Hoja de Vida de Asociados
-            </h1>
-            <p className="text-sm text-text-muted">
-              Formulario para caracterizar los servicios que presta su firma.
-            </p>
+            <h1 className="text-xl font-semibold text-primary">{t.appTitle}</h1>
+            <p className="text-sm text-text-muted">{t.appSubtitle}</p>
           </div>
           <div className="flex flex-col items-end gap-1">
+            <LanguageSwitcher />
             <DraftIndicator dep={form} />
             <button
               type="button"
               onClick={handleReset}
               className="text-xs text-text-subtle underline hover:text-primary"
             >
-              Empezar de nuevo
+              {t.startOver}
             </button>
           </div>
         </div>
       </header>
 
       <main className="mx-auto flex max-w-5xl flex-col gap-6 px-6 py-8">
-        <StepIndicator steps={STEPS} current={stage} onJump={(n) => goBack(n as Stage)} />
+        <StepIndicator steps={steps} current={stage} onJump={(n) => goBack(n as Stage)} />
 
         {stage === 1 && (
           <>
@@ -250,13 +248,11 @@ export default function App() {
                 role="alert"
                 className="rounded border border-danger/40 bg-red-50 p-3 text-sm text-danger"
               >
-                <p className="font-semibold">Corrija lo siguiente antes de continuar:</p>
+                <p className="font-semibold">{t.fixBeforeContinue}</p>
                 <ul className="mt-1 list-disc pl-5">
-                  {headerHasErrors && (
-                    <li>Complete los campos obligatorios del encabezado y corrija los correos.</li>
-                  )}
+                  {headerHasErrors && <li>{t.headerFieldsError}</li>}
                   {stage1Blockers.map((b) => (
-                    <li key={b.code}>{b.message}</li>
+                    <li key={b.code}>{t.blockers[b.code] ?? b.message}</li>
                   ))}
                 </ul>
               </div>
@@ -269,7 +265,7 @@ export default function App() {
                 disabled={submitted && !canAdvanceStage1}
                 className="rounded bg-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Continuar al paso 2 →
+                {t.continueToStep2}
               </button>
             </div>
           </>
@@ -278,27 +274,26 @@ export default function App() {
         {stage === 2 && (
           <>
             <section
-              aria-label="Matrices por grupo"
+              aria-label={t.matricesAria}
               className="flex flex-col gap-3"
             >
-              <h2 className="text-lg font-semibold text-primary">
-                Paso 2: Servicios por grupo y país
-              </h2>
+              <h2 className="text-lg font-semibold text-primary">{t.step2Title}</h2>
               <p className="text-sm text-text-muted">
-                Haga clic en cada celda para alternar entre <strong>No ofrecido</strong>,{' '}
-                <strong>Directo</strong> y <strong>Tercerizado</strong>. Use las flechas del
-                teclado y la barra espaciadora / Enter para navegar más rápido. Clic en el nombre
-                de un país o servicio marca/desmarca toda la columna o fila.
+                {t.step2Intro[0]}
+                <strong>{t.cellEmpty}</strong>, <strong>{t.cellDirecto}</strong>
+                {t.step2Intro[1]}
+                <strong>{t.cellTercerizado}</strong>
+                {t.step2Intro[2]}
               </p>
               {selectedGroups.length === 0 ? (
                 <p className="rounded border border-border bg-surface p-4 text-sm text-text-muted">
-                  No hay grupos seleccionados. Vuelva al paso 1 para elegir.
+                  {t.noGroupsSelected}
                 </p>
               ) : (
                 groupedSelection.map((bucket) => (
                   <div key={bucket.category.id} className="flex flex-col gap-3">
                     <h3 className="mt-2 text-base font-semibold text-primary">
-                      {bucket.category.label}
+                      {label(bucket.category.label, lang)}
                     </h3>
                     {bucket.directGroups.map((g) => (
                       <GroupSection
@@ -308,7 +303,7 @@ export default function App() {
                         matrix={form.matrices[g.id] ?? {}}
                         displayLabel={
                           g.id === 'otro_grupo' && form.customGroupName.trim()
-                            ? `Otro grupo: ${form.customGroupName.trim()}`
+                            ? `${t.otherGroupPrefix}: ${form.customGroupName.trim()}`
                             : undefined
                         }
                         onCellCycle={(service, country) => cycleCell(g.id, service, country)}
@@ -342,14 +337,14 @@ export default function App() {
                 onClick={() => goBack(1)}
                 className="rounded border border-border bg-white px-4 py-2 text-sm font-medium text-text hover:border-primary"
               >
-                ← Volver al paso 1
+                {t.backToStep1}
               </button>
               <button
                 type="button"
                 onClick={goToStage3}
                 className="rounded bg-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-primary-600"
               >
-                Continuar a revisión →
+                {t.continueToReview}
               </button>
             </div>
           </>
@@ -370,7 +365,7 @@ export default function App() {
                 role="alert"
                 className="rounded border border-danger/40 bg-red-50 p-3 text-sm text-danger"
               >
-                No fue posible enviar el formulario: {submitError}
+                {t.submitFailed} {submitError}
               </div>
             )}
           </>

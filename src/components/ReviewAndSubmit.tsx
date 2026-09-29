@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import type { FormState } from '../types/form';
 import { buildRows, findSubmitBlockers, groupDisplayLabel } from '../lib/payload';
 import { GROUPS, findGroupContext } from '../data/form-config';
-import { countryName } from '../data/countries';
+import { useLang } from '../i18n/lang';
+import { countryLabel, label } from '../i18n/labels';
 
 type Props = {
   form: FormState;
@@ -13,6 +14,7 @@ type Props = {
 };
 
 export function ReviewAndSubmit({ form, headerHasErrors, submitting, onSubmit, onBack }: Props) {
+  const { lang, t } = useLang();
   const rows = useMemo(() => buildRows(form), [form]);
   const blockers = useMemo(() => findSubmitBlockers(form), [form]);
 
@@ -40,17 +42,15 @@ export function ReviewAndSubmit({ form, headerHasErrors, submitting, onSubmit, o
       className="rounded-lg border border-border bg-surface p-6"
     >
       <h2 id="review-title" className="text-lg font-semibold text-primary">
-        Revisar y enviar
+        {t.reviewTitle}
       </h2>
-      <p className="mt-1 text-sm text-text-muted">
-        Verifique el resumen a continuación antes de enviar.
-      </p>
+      <p className="mt-1 text-sm text-text-muted">{t.reviewIntro}</p>
 
       <div className="mt-4 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
-        <SummaryLine label="Razón social" value={form.company.razonSocial || '—'} />
-        <SummaryLine label="País de origen" value={form.company.paisOrigen || '—'} />
+        <SummaryLine label={t.razonSocial} value={form.company.razonSocial || '—'} />
+        <SummaryLine label={t.paisOrigen} value={form.company.paisOrigen || '—'} />
         <SummaryLine
-          label="Contacto principal"
+          label={t.contactoPrincipal}
           value={
             form.company.contactoPrincipalNombre
               ? `${form.company.contactoPrincipalNombre} · ${form.company.contactoPrincipalCorreo || '—'}`
@@ -58,37 +58,37 @@ export function ReviewAndSubmit({ form, headerHasErrors, submitting, onSubmit, o
           }
         />
         <SummaryLine
-          label="Países de operación"
+          label={t.operatingCountries}
           value={
             form.selectedCountries.length === 0
               ? '—'
               : `${form.selectedCountries.length} — ${form.selectedCountries
-                  .map((c) => countryName(c))
+                  .map((c) => countryLabel(c, lang))
                   .join(', ')}`
           }
         />
         <SummaryLine
-          label="Grupos seleccionados"
+          label={t.selectedGroups}
           value={form.selectedGroupIds.length.toString()}
         />
-        <SummaryLine label="Celdas marcadas" value={rows.length.toString()} />
+        <SummaryLine label={t.markedCells} value={rows.length.toString()} />
       </div>
 
       <div className="mt-6">
         <h3 className="text-sm font-semibold text-text">
-          Detalle por grupo
+          {t.detailByGroup}
         </h3>
         {byGroupId.size === 0 ? (
-          <p className="mt-2 text-sm text-text-subtle">
-            No hay celdas marcadas todavía.
-          </p>
+          <p className="mt-2 text-sm text-text-subtle">{t.noMarkedCells}</p>
         ) : (
           <ul className="mt-2 space-y-3">
             {Array.from(byGroupId.entries()).map(([gid, rs]) => {
               const ctx = findGroupContext(gid);
-              const grupoLabel = rs[0]?.grupo ?? gid;
+              const grupoLabel = label(rs[0]?.grupo ?? gid, lang);
               const contextTag = ctx
-                ? `${ctx.category.label}${ctx.subcategory ? ' · ' + ctx.subcategory.label : ''}`
+                ? `${label(ctx.category.label, lang)}${
+                    ctx.subcategory ? ' · ' + label(ctx.subcategory.label, lang) : ''
+                  }`
                 : null;
               return (
                 <li
@@ -103,15 +103,15 @@ export function ReviewAndSubmit({ form, headerHasErrors, submitting, onSubmit, o
                       )}
                     </div>
                     <span className="text-xs text-text-muted">
-                      {rs.length} celda(s)
+                      {t.cellsCount(rs.length)}
                     </span>
                   </div>
                   <ul className="mt-2 space-y-1 text-xs text-text">
                     {rs.map((r, i) => (
                       <li key={i}>
-                        <span className="font-mono">{countryName(r.paisAplicacion)}</span>
+                        <span className="font-mono">{countryLabel(r.paisAplicacion, lang)}</span>
                         {' — '}
-                        {r.servicio || <em>(sin subservicio)</em>}
+                        {r.servicio ? label(r.servicio, lang) : <em>{t.noSubservice}</em>}
                         {' · '}
                         <ModalidadBadge modalidad={r.modalidad} />
                       </li>
@@ -129,13 +129,11 @@ export function ReviewAndSubmit({ form, headerHasErrors, submitting, onSubmit, o
           role="alert"
           className="mt-6 rounded border border-danger/40 bg-red-50 p-3 text-sm text-danger"
         >
-          <p className="font-semibold">Corrija lo siguiente antes de enviar:</p>
+          <p className="font-semibold">{t.fixBeforeSubmit}</p>
           <ul className="mt-1 list-disc pl-5">
-            {headerHasErrors && (
-              <li>Complete los campos obligatorios del encabezado y corrija los correos.</li>
-            )}
+            {headerHasErrors && <li>{t.headerFieldsError}</li>}
             {blockers.map((b) => (
-              <li key={b.code}>{b.message}</li>
+              <li key={b.code}>{t.blockers[b.code] ?? b.message}</li>
             ))}
           </ul>
         </div>
@@ -148,7 +146,7 @@ export function ReviewAndSubmit({ form, headerHasErrors, submitting, onSubmit, o
             onClick={onBack}
             className="rounded border border-border bg-white px-4 py-2 text-sm font-medium text-text hover:border-primary"
           >
-            ← Volver al paso 2
+            {t.backToStep2}
           </button>
         ) : (
           <span />
@@ -159,7 +157,7 @@ export function ReviewAndSubmit({ form, headerHasErrors, submitting, onSubmit, o
           disabled={!canSubmit}
           className="rounded bg-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {submitting ? 'Enviando…' : 'Enviar'}
+          {submitting ? t.submitting : t.submit}
         </button>
       </div>
     </section>
@@ -176,10 +174,11 @@ function SummaryLine({ label, value }: { label: string; value: string }) {
 }
 
 function ModalidadBadge({ modalidad }: { modalidad: 'Directo' | 'Tercerizado' }) {
+  const { t } = useLang();
   if (modalidad === 'Directo') {
     return (
       <span className="inline-flex items-center rounded bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-white">
-        Directo
+        {t.cellDirecto}
       </span>
     );
   }
@@ -192,7 +191,7 @@ function ModalidadBadge({ modalidad }: { modalidad: 'Directo' | 'Tercerizado' })
           'repeating-linear-gradient(45deg, rgba(255,255,255,0.28) 0 3px, transparent 3px 6px)',
       }}
     >
-      Tercerizado
+      {t.cellTercerizado}
     </span>
   );
 }

@@ -1,3 +1,5 @@
+import { useLang } from '../i18n/lang';
+
 type Step = { n: number; label: string };
 
 type Props = {
@@ -11,9 +13,10 @@ type Props = {
  * users click a past step to go back — future steps stay disabled.
  */
 export function StepIndicator({ steps, current, onJump }: Props) {
+  const { t } = useLang();
   return (
     <ol
-      aria-label="Progreso del formulario"
+      aria-label={t.progressLabel}
       className="flex items-center gap-2 text-xs"
     >
       {steps.map((s, idx) => {

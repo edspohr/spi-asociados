@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { useLang } from '../i18n/lang';
 
 /**
  * Subtle "Borrador guardado" pill that briefly flashes when `dep` changes.
  * We debounce visibility so it doesn't flicker on every keystroke.
  */
 export function DraftIndicator({ dep }: { dep: unknown }) {
+  const { t } = useLang();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -24,7 +26,7 @@ export function DraftIndicator({ dep }: { dep: unknown }) {
         visible ? 'opacity-100' : 'opacity-0'
       } text-text-subtle`}
     >
-      Borrador guardado
+      {t.draftSaved}
     </span>
   );
 }

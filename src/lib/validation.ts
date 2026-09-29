@@ -1,4 +1,5 @@
 import type { CompanyErrors, CompanyInfo } from '../types/form';
+import { STRINGS, type Strings } from '../i18n/strings';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -19,12 +20,6 @@ const EMAIL_FIELDS: StringField[] = [
 const YEAR_FIELDS: StringField[] = ['anioInicio'];
 const NUMBER_FIELDS: StringField[] = ['numEmpleados'];
 
-const MSG_REQUIRED = 'Este campo es obligatorio.';
-const MSG_EMAIL = 'Ingrese un correo electrónico válido.';
-const MSG_EMAIL_OR_REMOVE = 'Ingrese un correo o elimine este campo.';
-const MSG_YEAR = 'Ingrese un año válido (por ejemplo, 1998).';
-const MSG_NUMBER = 'Ingrese un número válido.';
-
 export const PHONE_ALLOWED_RE = /^[0-9+\-\s()]*$/;
 
 /**
@@ -35,12 +30,15 @@ export function sanitizePhoneInput(v: string): string {
   return v.replace(/[^0-9+\-\s()]/g, '');
 }
 
-export function validateCompany(company: CompanyInfo): CompanyErrors {
+export function validateCompany(
+  company: CompanyInfo,
+  messages: Strings['validation'] = STRINGS.es.validation,
+): CompanyErrors {
   const errors: CompanyErrors = {};
 
   for (const field of REQUIRED_FIELDS) {
     if (!company[field].trim()) {
-      errors[field] = MSG_REQUIRED;
+      errors[field] = messages.required;
     }
   }
 
@@ -48,14 +46,14 @@ export function validateCompany(company: CompanyInfo): CompanyErrors {
     const value = company[field].trim();
     if (!value) continue;
     if (!EMAIL_RE.test(value)) {
-      errors[field] = MSG_EMAIL;
+      errors[field] = messages.email;
     }
   }
 
   const perEmail = company.correosAdicionales.map((raw): string | undefined => {
     const v = raw.trim();
-    if (!v) return MSG_EMAIL_OR_REMOVE;
-    if (!EMAIL_RE.test(v)) return MSG_EMAIL;
+    if (!v) return messages.emailOrRemove;
+    if (!EMAIL_RE.test(v)) return messages.email;
     return undefined;
   });
   if (perEmail.some(Boolean)) {
@@ -68,7 +66,7 @@ export function validateCompany(company: CompanyInfo): CompanyErrors {
     const n = Number(value);
     const currentYear = new Date().getFullYear();
     if (!Number.isInteger(n) || n < 1800 || n > currentYear) {
-      errors[field] = MSG_YEAR;
+      errors[field] = messages.year;
     }
   }
 
@@ -77,7 +75,7 @@ export function validateCompany(company: CompanyInfo): CompanyErrors {
     if (!value) continue;
     const n = Number(value);
     if (!Number.isFinite(n) || n < 0 || !Number.isInteger(n)) {
-      errors[field] = MSG_NUMBER;
+      errors[field] = messages.number;
     }
   }
 

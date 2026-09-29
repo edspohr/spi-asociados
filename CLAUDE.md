@@ -8,6 +8,9 @@ associates (~48) so they can declare which **services** they offer, for which
 ## Language rule (non-negotiable)
 
 - **UI text, labels, tooltips, validation, success screens → Spanish (neutral LatAm).**
+  The public form also has an **English** version (ES/EN toggle in the header,
+  or `?lang=en` in the link; choice persisted in `localStorage`). The admin
+  view stays Spanish-only.
 - **Code, identifiers, comments, commit messages, file names, this file → English.**
 
 ## Stack
@@ -115,6 +118,7 @@ headers on hashed assets with `no-cache` on `index.html`, and configures the
 src/
   components/   React components (matrix cell, group section, header form, review, admin)
   data/         Static config (groups, services, countries, tooltips)
+  i18n/         Form language switch: ES/EN strings + label translations
   hooks/        useLocalStorageState and friends
   lib/          Payload builders, validation helpers, fetch client, matrix bulk ops
   styles/       Global CSS + Tailwind tokens
@@ -126,7 +130,12 @@ firestore.rules Deny-all client access; all reads/writes go through Functions
 
 ## Conventions
 
-- Spanish strings live inline in components (no i18n framework in v1).
+- Form UI copy lives in `src/i18n/strings.ts` (`es` + `en`, same keys), read
+  via `useLang()`. Group/service/region/country names are translated at render
+  by `src/i18n/labels.ts`; the Spanish label stays canonical in cell keys and
+  submitted rows, so data is identical whichever language was used. Adding a
+  service in `form-config.ts` requires an English entry (enforced by a test).
+- Admin strings live inline in components (Spanish only).
 - All identifiers, props, and file names are English.
 - Autosave the entire draft to `localStorage` on every change; restore on load.
 - Append-only submissions; no editing of prior responses in v1.

@@ -7,6 +7,8 @@ import {
   type CountryDef,
   type Region,
 } from '../data/countries';
+import { useLang } from '../i18n/lang';
+import { countryLabel, regionLabel } from '../i18n/labels';
 
 type Props = {
   selected: CountryCode[];
@@ -19,6 +21,7 @@ type Props = {
  * in one click. Opening a region never selects anything on its own.
  */
 export function RegionCountrySelector({ selected, onChange }: Props) {
+  const { lang, t } = useLang();
   const selectedSet = useMemo(() => new Set(selected), [selected]);
 
   function setCountry(code: CountryCode, on: boolean) {
@@ -54,12 +57,14 @@ export function RegionCountrySelector({ selected, onChange }: Props) {
     >
       <header className="mb-4">
         <h2 id="regions-title" className="text-lg font-semibold text-primary">
-          Regiones y países de operación
+          {t.regionsTitle}
         </h2>
         <p className="text-sm text-text-muted">
-          Los países comienzan <strong>sin marcar</strong>. Abra cada región y tilde los países en
-          los que su firma opera, o use <strong>“Marcar todos”</strong> para seleccionar la región
-          completa. Sólo los países seleccionados aparecerán como columnas en el paso siguiente.
+          {t.regionsIntro[0]}
+          <strong>{t.regionsIntro[1]}</strong>
+          {t.regionsIntro[2]}
+          <strong>{t.regionsIntro[3]}</strong>
+          {t.regionsIntro[4]}
         </p>
       </header>
 
@@ -77,13 +82,16 @@ export function RegionCountrySelector({ selected, onChange }: Props) {
 
       <p className="mt-4 text-xs text-text-subtle">
         {selected.length === 0 ? (
-          'Aún no ha seleccionado ningún país.'
+          t.noCountries
         ) : (
           <>
-            {selected.length} país(es) seleccionados
+            {t.countriesSelected(selected.length)}
             {regionsWithSelection.length > 0 && (
-              <> en {regionsWithSelection.length} región(es):{' '}
-                <span className="text-text-muted">{regionsWithSelection.join(', ')}</span>
+              <>
+                {t.inRegions(regionsWithSelection.length)}
+                <span className="text-text-muted">
+                  {regionsWithSelection.map((r) => regionLabel(r, lang)).join(', ')}
+                </span>
               </>
             )}
             .
@@ -105,6 +113,7 @@ function RegionBlock({
   onCountryChange: (code: CountryCode, on: boolean) => void;
   onRegionAllChange: (region: Region, on: boolean) => void;
 }) {
+  const { lang, t } = useLang();
   const countries = useMemo(() => countriesByRegion(region), [region]);
   const selectedCount = countries.filter((c) => selectedSet.has(c.code2)).length;
   const [open, setOpen] = useState(false);
@@ -128,7 +137,7 @@ function RegionBlock({
             ▶
           </span>
           <span id={`region-${region}-title`} className="font-semibold text-primary">
-            {region}
+            {regionLabel(region, lang)}
           </span>
           <span className="text-xs text-text-muted">
             ({selectedCount}/{countries.length})
@@ -140,7 +149,7 @@ function RegionBlock({
             onClick={() => onRegionAllChange(region, !allSelected)}
             className="text-xs text-primary underline hover:opacity-80"
           >
-            {allSelected ? 'Desmarcar todos' : 'Marcar todos'}
+            {allSelected ? t.deselectAll : t.selectAll}
           </button>
         )}
       </div>
@@ -175,6 +184,7 @@ function CountryCheckbox({
   checked: boolean;
   onChange: (next: boolean) => void;
 }) {
+  const { lang } = useLang();
   return (
     <li>
       <label
@@ -189,7 +199,7 @@ function CountryCheckbox({
           className="mt-0.5 h-4 w-4 accent-primary"
         />
         <span className="flex flex-col">
-          <span className="text-text">{country.nameEs}</span>
+          <span className="text-text">{countryLabel(country.code2, lang)}</span>
           <span className="text-xs text-text-subtle">{country.code2}</span>
         </span>
       </label>

@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { CATEGORIES, type Group } from '../data/form-config';
+import { useLang } from '../i18n/lang';
+import { label } from '../i18n/labels';
 
 type Props = {
   selectedIds: string[];
@@ -18,6 +20,7 @@ function GroupCheckboxGrid({
   selectedSet: Set<string>;
   onToggle: (id: string, next: boolean) => void;
 }) {
+  const { lang } = useLang();
   return (
     <ul
       role="group"
@@ -40,7 +43,7 @@ function GroupCheckboxGrid({
                 onChange={(e) => onToggle(g.id, e.target.checked)}
                 className="mt-0.5 h-4 w-4 accent-primary"
               />
-              <span className="text-text">{g.label}</span>
+              <span className="text-text">{label(g.label, lang)}</span>
             </label>
           </li>
         );
@@ -58,6 +61,7 @@ function BulkToggleButton({
   selectedSet: Set<string>;
   onToggleMany: (ids: string[], next: boolean) => void;
 }) {
+  const { t } = useLang();
   const allSelected = ids.length > 0 && ids.every((id) => selectedSet.has(id));
   return (
     <button
@@ -65,7 +69,7 @@ function BulkToggleButton({
       onClick={() => onToggleMany(ids, !allSelected)}
       className="text-xs text-primary underline hover:opacity-80"
     >
-      {allSelected ? 'Desmarcar todos' : 'Marcar todos'}
+      {allSelected ? t.deselectAll : t.selectAll}
     </button>
   );
 }
@@ -135,6 +139,7 @@ export function GroupSelector({
   onToggleMany,
   onCustomNameChange,
 }: Props) {
+  const { lang, t } = useLang();
   const selectedSet = new Set(selectedIds);
   const otroSelected = selectedSet.has('otro_grupo');
 
@@ -145,12 +150,9 @@ export function GroupSelector({
     >
       <header className="mb-4">
         <h2 id="groups-title" className="text-lg font-semibold text-primary">
-          Selección de grupos de producto
+          {t.groupsTitle}
         </h2>
-        <p className="text-sm text-text-muted">
-          Marque únicamente los grupos con los que su firma trabaja. Solo se le pedirá completar
-          las matrices de los grupos seleccionados.
-        </p>
+        <p className="text-sm text-text-muted">{t.groupsIntro}</p>
       </header>
 
       <div className="flex flex-col gap-3">
@@ -164,7 +166,7 @@ export function GroupSelector({
               <CollapsibleSection
                 key={category.id}
                 id={`cat-${category.id}`}
-                title={category.label}
+                title={label(category.label, lang)}
                 bulkIds={isOtroCategory ? undefined : ids}
                 selectedSet={selectedSet}
                 onToggleMany={onToggleMany}
@@ -178,14 +180,14 @@ export function GroupSelector({
                   <div className="mt-4">
                     <label className="flex flex-col gap-1 text-sm">
                       <span className="font-medium text-text">
-                        Nombre del otro grupo
+                        {t.otherGroupName}
                         <span className="ml-1 text-danger">★</span>
                       </span>
                       <input
                         type="text"
                         value={customGroupName}
                         onChange={(e) => onCustomNameChange(e.target.value)}
-                        placeholder="Especifique el nombre del grupo"
+                        placeholder={t.otherGroupPlaceholder}
                         className="w-full rounded border border-border bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                       />
                     </label>
@@ -202,7 +204,7 @@ export function GroupSelector({
               <CollapsibleSection
                 key={category.id}
                 id={`cat-${category.id}`}
-                title={category.label}
+                title={label(category.label, lang)}
                 bulkIds={allIds}
                 selectedSet={selectedSet}
                 onToggleMany={onToggleMany}
@@ -214,7 +216,7 @@ export function GroupSelector({
                       <CollapsibleSection
                         key={sub.id}
                         id={`subcat-${sub.id}`}
-                        title={sub.label}
+                        title={label(sub.label, lang)}
                         bulkIds={ids}
                         selectedSet={selectedSet}
                         onToggleMany={onToggleMany}
@@ -238,8 +240,8 @@ export function GroupSelector({
 
       <p className="mt-4 text-xs text-text-subtle">
         {selectedIds.length === 0
-          ? 'Aún no ha seleccionado ningún grupo.'
-          : `${selectedIds.length} grupo(s) seleccionados.`}
+          ? t.noGroups
+          : t.groupsSelected(selectedIds.length)}
       </p>
     </section>
   );
